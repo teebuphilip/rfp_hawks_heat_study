@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RFP Hawks Heat Study - Hawks View</title>
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body data-app="team">
+    <header>
+      <div class="wrap">
+        <div class="eyebrow">DBB2 Basketball Ops</div>
+        <h1>Hawks RFP View</h1>
+        <p>Team-first comparison page for the Hawks RFP. This keeps the roster-value, HBB, pressure, depth, and team-score layers front and center.</p>
+        <div class="subline">
+          <span class="chip">Hawks vs Knicks</span>
+          <span class="chip">Core 4</span>
+          <span class="chip">Depth 8-15</span>
+          <span class="chip">Team evaluation</span>
+        </div>
+      </div>
+    </header>
+
+    <main data-app-root data-sample="../data/basketball_ops_comparison_summary.json">
+      <div class="split">
+        <section class="card">
+          <h2>Controls</h2>
+          <div class="controls">
+            <div class="field span-6">
+              <label>Load comparison bundle</label>
+              <input data-file-input type="file" accept=".json" />
+            </div>
+            <div class="field span-3">
+              <label>Rows shown</label>
+              <input data-view-limit type="number" min="5" step="5" value="20" />
+            </div>
+          </div>
+          <div class="toolbar" style="margin-top: 14px;">
+            <button class="ghost" data-load-demo>Load Demo Bundle</button>
+            <button class="primary" data-run>Render Comparison</button>
+            <button data-download-csv disabled>Download CSV</button>
+            <button data-download-json disabled>Download JSON</button>
+          </div>
+          <p class="small muted" data-status style="margin-top: 12px;">Waiting for comparison bundle.</p>
+        </section>
+
+        <aside class="card">
+          <h2>Summary</h2>
+          <div data-summary class="list"></div>
+          <p class="small muted" style="margin-top: 14px;">This is the Hawks-RFP framing: team construction first, player comparisons second.</p>
+        </aside>
+      </div>
+
+      <section class="section card">
+        <div class="table-actions">
+          <div>
+            <h2 style="margin-bottom: 4px;">Team Comparison</h2>
+            <p class="small muted">Top 7 value, core 4, interaction, pressure, depth, and wins bridge.</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <div data-team-table></div>
+        </div>
+      </section>
+
+      <section class="section card">
+        <div class="table-actions">
+          <div>
+            <h2 style="margin-bottom: 4px;">Player Comparisons</h2>
+            <p class="small muted">Headline comps remain visible as supporting evidence.</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <div data-player-table></div>
+        </div>
+      </section>
+    </main>
+
+    <script src="../app.js"></script>
+  </body>
+</html>

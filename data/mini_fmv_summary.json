@@ -1,0 +1,30 @@
+{
+  "input_path": "/Users/teebuphilip/Documents/work/dbb2-engine/reports/basketball_ops/context_neutral/context_neutral_player_feed.csv",
+  "output_dir": "/Users/teebuphilip/Documents/work/dbb2-engine/reports/basketball_ops/fmv",
+  "simulations": 500,
+  "seed": 42,
+  "salary_cap": 154647000,
+  "team_count": 30,
+  "roster_slots": 12,
+  "weight_profile": {
+    "points": 3.0,
+    "rebounds": 2.0,
+    "assists": 2.5,
+    "steals": 3.0,
+    "blocks": 3.0,
+    "threes": 1.5,
+    "turnovers": -1.5,
+    "fg_pct": 1.0,
+    "ft_pct": 0.75,
+    "usage": 0.5,
+    "games": 1.5,
+    "minutes": 0.75
+  },
+  "player_rows": 505,
+  "top_player": {
+    "player_name": "Nikola Joki\u0107",
+    "team": "DEN",
+    "position": "C",
+    "sim_median_salary": 46239453.0
+  }
+}

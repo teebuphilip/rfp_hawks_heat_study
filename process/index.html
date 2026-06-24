@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RFP Hawks Heat Study - Process</title>
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body data-app="process">
+    <header>
+      <div class="wrap">
+        <div class="eyebrow">DBB2 Basketball Ops</div>
+        <h1>Process</h1>
+        <p>This page explains the stack in order: raw DBB2 projections, teammate-neutral normalization, FMV pricing, FMVW bridging, and team comparison.</p>
+        <div class="subline">
+          <span class="chip">Raw projections</span>
+          <span class="chip">Neutralize context</span>
+          <span class="chip">Price market value</span>
+          <span class="chip">Bridge to wins</span>
+        </div>
+      </div>
+    </header>
+
+    <main data-app-root>
+      <div class="split">
+        <section class="card">
+          <h2>Layer Stack</h2>
+          <div data-summary class="list"></div>
+          <p class="small muted" style="margin-top: 14px;">The goal is to keep the player valuation layer separate from the team aggregation layer so the model stays readable to basketball operations users.</p>
+        </section>
+
+        <aside class="card">
+          <h2>What It Is Not</h2>
+          <div class="list">
+            <div class="metric">
+              <span class="muted">Not</span>
+              <strong>A fantasy draft clone</strong>
+            </div>
+            <div class="metric">
+              <span class="muted">Not</span>
+              <strong>A direct dollars-to-wins shortcut</strong>
+            </div>
+            <div class="metric">
+              <span class="muted">Not</span>
+              <strong>A single-number impact model</strong>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <section class="section card">
+        <h2>Read In Order</h2>
+        <div class="list">
+          <div class="card">
+            <h3>1. DBB2 raw projection</h3>
+            <p>Player output starts in the projection engine. Age, usage, durability, and similar inputs are already baked in.</p>
+          </div>
+          <div class="card">
+            <h3>2. Teammate-neutral normalization</h3>
+            <p>Adjust the player feed so a player is not penalized or inflated by surrounding roster quality.</p>
+          </div>
+          <div class="card">
+            <h3>3. FMV pricing</h3>
+            <p>Apply basketball-ops weights and a cap-constrained market simulation to produce salary-equivalent value.</p>
+          </div>
+          <div class="card">
+            <h3>4. FMVW bridge</h3>
+            <p>Aggregate value at the roster level and calibrate that total against wins.</p>
+          </div>
+          <div class="card">
+            <h3>5. Team vs team</h3>
+            <p>Apply HBB and team-structure adjustments for comparisons like Hawks vs Knicks.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="../app.js"></script>
+  </body>
+</html>
