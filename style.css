@@ -75,7 +75,11 @@ p { margin: 8px 0 0; color: var(--muted); }
 .grid {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 24px;
+  gap: 28px;
+}
+
+.grid > a {
+  grid-column: span 6;
 }
 
 .card {
@@ -271,6 +275,7 @@ th {
 }
 
 @media (max-width: 920px) {
+  .grid > a { grid-column: span 12; }
   .span-3, .span-4, .span-5, .span-6, .span-7, .span-8, .span-9 { grid-column: span 12; }
   .split { grid-template-columns: 1fr; }
   main { padding: 16px; }
