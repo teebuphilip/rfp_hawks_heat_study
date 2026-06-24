@@ -70,6 +70,42 @@
           </div>
         </div>
       </section>
+
+      <section class="section card">
+        <h2>Why This Is Different</h2>
+        <div class="list">
+          <div class="card">
+            <h3>Compared with VORP / Win Shares</h3>
+            <p>Those approaches are mainly trying to attribute team wins back to players. DBB2 starts one layer earlier: it neutralizes teammate context first, then prices the player in a market. The output is not just a win-share estimate. It is market value on top of a cleaner player signal.</p>
+          </div>
+          <div class="card">
+            <h3>Compared with BPM / RAPTOR / LEBRON / EPM-style models</h3>
+            <p>Those systems generally aim to estimate player impact directly from a mix of box score and plus-minus style inputs. DBB2 is narrower at the start: it keeps the player layer teammate-neutral, then turns that into fair market value. That makes it easier to talk about value, overpay, and roster construction without confusing the player signal with the team signal.</p>
+          </div>
+          <div class="card">
+            <h3>Compared with a fantasy auction model</h3>
+            <p>This is not built to maximize category stats or win a fantasy draft. It is built to price an NBA player inside a cap-constrained market, then use that valuation as the basis for a wins bridge or team comparison when needed.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section card">
+        <h2>How To Read It</h2>
+        <div class="list">
+          <div class="card">
+            <h3>Player-first</h3>
+            <p>If you are asking who is better between two players, look at the FMVW View first. That is where the teammate-neutral valuation is the point, not the side effect.</p>
+          </div>
+          <div class="card">
+            <h3>Team context second</h3>
+            <p>If you are asking how a roster shape behaves over a season, use the team layers and the league table. That is where core concentration, depth, interaction, and pressure begin to matter.</p>
+          </div>
+          <div class="card">
+            <h3>Wins bridge is derived</h3>
+            <p>The wins-equivalent number is useful, but it is downstream of FMV. It is there to help the conversation, not replace the player value signal.</p>
+          </div>
+        </div>
+      </section>
     </main>
 
     <script src="../app.js"></script>
