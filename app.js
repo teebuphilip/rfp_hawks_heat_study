@@ -1,7 +1,7 @@
 (() => {
   const DEFAULTS = {
     fmvFeed: "./data/mini_fmv_player_values.csv",
-    fmvwFeed: "./data/mini_fmv_player_values.csv",
+    fmvwFeed: "./data/fmvw_top200_2526.csv",
     teamComparisonFeed: "./data/basketball_ops_comparison_summary.json",
     leagueTableFeed: "./data/league_table.json",
     salaryCap: 154647000,
@@ -699,8 +699,6 @@
     const summary = root.querySelector("[data-summary]");
     const gapSummary = root.querySelector("[data-gap-summary]");
     const table = root.querySelector("[data-table]");
-    const fileInput = root.querySelector("[data-file-input]");
-    const loadDemoBtn = root.querySelector("[data-load-demo]");
     const compareBtn = root.querySelector("[data-compare]");
     const downloadCsvBtn = root.querySelector("[data-download-csv]");
     const downloadJsonBtn = root.querySelector("[data-download-json]");
@@ -812,27 +810,15 @@
       render();
     };
 
-    const loadDemo = async () => {
-      status.textContent = "Loading player pool...";
+    const loadPool = async () => {
+      status.textContent = "Loading 25-26 top 200 pool...";
       currentRows = await fetchRows(samplePath);
       leagueBundle = await fetchJson(leaguePath);
       populatePlayerSelects(currentRows);
-      status.textContent = `Loaded ${currentRows.length} players.`;
+      status.textContent = `Loaded ${currentRows.length} players from the 25-26 top 200 pool.`;
       run();
     };
 
-    fileInput.addEventListener("change", async () => {
-      const file = fileInput.files && fileInput.files[0];
-      if (!file) return;
-      status.textContent = `Reading ${file.name}...`;
-      const text = await readFileAsText(file);
-      currentRows = parseUploadedText(text);
-      populatePlayerSelects(currentRows);
-      status.textContent = `Loaded ${currentRows.length} rows from ${file.name}.`;
-      run();
-    });
-
-    loadDemoBtn.addEventListener("click", loadDemo);
     compareBtn.addEventListener("click", run);
     playerAInput?.addEventListener("change", run);
     playerBInput?.addEventListener("change", run);
@@ -846,7 +832,7 @@
       downloadFile("fmvw_output.json", JSON.stringify(currentResult, null, 2) + "\n", "application/json");
     });
 
-    await loadDemo();
+    await loadPool();
   }
 
   async function mountTeam(root) {
