@@ -133,6 +133,15 @@
     return text;
   }
 
+  function escapeHTML(value) {
+    return String(value === null || value === undefined ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
   function toCSV(rows, columns) {
     if (!rows.length) return "";
     const headers = columns || Object.keys(rows[0]);
@@ -697,11 +706,29 @@
     const downloadJsonBtn = root.querySelector("[data-download-json]");
     const playerAInput = root.querySelector("[data-player-a]");
     const playerBInput = root.querySelector("[data-player-b]");
-    const playerPool = root.querySelector("[data-player-pool]");
 
     let currentRows = [];
     let leagueBundle = {};
     let currentResult = null;
+
+    const populatePlayerSelects = (rows) => {
+      const sorted = [...rows].sort((a, b) => String(a.player_name || "").localeCompare(String(b.player_name || "")));
+      const defaultA = sorted.find((row) => normalizeText(row.player_name) === normalizeText("Nikola Jokić"))?.player_name || sorted[0]?.player_name || "";
+      const defaultB = sorted.find((row) => normalizeText(row.player_name) === normalizeText("Rudy Gobert"))?.player_name || sorted[1]?.player_name || sorted[0]?.player_name || "";
+      for (const select of [playerAInput, playerBInput]) {
+        if (!select) continue;
+        const previous = String(select.value || "");
+        select.innerHTML = [
+          `<option value="">Select a player</option>`,
+          ...sorted.map((row) => `<option value="${escapeHTML(row.player_name)}">${escapeHTML(row.player_name)}</option>`),
+        ].join("");
+        if (previous && sorted.some((row) => row.player_name === previous)) {
+          select.value = previous;
+        }
+      }
+      if (playerAInput && !playerAInput.value) playerAInput.value = defaultA;
+      if (playerBInput && !playerBInput.value) playerBInput.value = defaultB;
+    };
 
     const render = () => {
       if (!currentResult) return;
@@ -789,12 +816,7 @@
       status.textContent = "Loading player pool...";
       currentRows = await fetchRows(samplePath);
       leagueBundle = await fetchJson(leaguePath);
-      const sorted = [...currentRows].sort((a, b) => String(a.player_name || "").localeCompare(String(b.player_name || "")));
-      if (playerPool) {
-        playerPool.innerHTML = sorted.map((row) => `<option value="${escapeCSV(row.player_name)}"></option>`).join("");
-      }
-      if (playerAInput && !playerAInput.value) playerAInput.value = "Nikola Jokić";
-      if (playerBInput && !playerBInput.value) playerBInput.value = "Rudy Gobert";
+      populatePlayerSelects(currentRows);
       status.textContent = `Loaded ${currentRows.length} players.`;
       run();
     };
@@ -805,6 +827,7 @@
       status.textContent = `Reading ${file.name}...`;
       const text = await readFileAsText(file);
       currentRows = parseUploadedText(text);
+      populatePlayerSelects(currentRows);
       status.textContent = `Loaded ${currentRows.length} rows from ${file.name}.`;
       run();
     });

@@ -29,11 +29,11 @@
           <div class="controls">
             <div class="field span-6">
               <label>Player A</label>
-              <input data-player-a list="player-pool" type="text" placeholder="Type a player name" />
+              <select data-player-a></select>
             </div>
             <div class="field span-6">
               <label>Player B</label>
-              <input data-player-b list="player-pool" type="text" placeholder="Type a player name" />
+              <select data-player-b></select>
             </div>
             <div class="field span-6">
               <label>Load player pool</label>
@@ -50,7 +50,6 @@
             </div>
           </div>
           <p class="small muted" data-status style="margin-top: 12px;">Waiting for player pool.</p>
-          <datalist id="player-pool" data-player-pool></datalist>
         </section>
 
         <aside class="card">
@@ -69,6 +68,42 @@
         </div>
         <div class="table-wrap">
           <div data-table></div>
+        </div>
+      </section>
+
+      <section class="section card">
+        <h2>Definitions</h2>
+        <div class="list">
+          <div class="metric">
+            <span class="muted">Teammate-neutral evaluation</span>
+            <strong>Player production adjusted to a common roster context.</strong>
+          </div>
+          <div class="metric">
+            <span class="muted">FMV</span>
+            <strong>The cap-constrained market price a player clears for.</strong>
+          </div>
+          <div class="metric">
+            <span class="muted">FMVW</span>
+            <strong>The wins-equivalent translation of that market value.</strong>
+          </div>
+          <div class="metric">
+            <span class="muted">HBB</span>
+            <strong>A team-context multiplier. It measures how much the surrounding roster, balance, pressure, and support change the wins-equivalent value of the player after FMV is set. HBB is not a player trait; it is a team-level adjustment applied on top of player value.</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="section card">
+        <h2>Benchmark Examples</h2>
+        <div class="list">
+          <div class="metric">
+            <span class="muted">Example 1</span>
+            <strong>Nikola Jokić vs Rudy Gobert</strong>
+          </div>
+          <div class="metric">
+            <span class="muted">Example 2</span>
+            <strong>Luka Dončić vs Shai Gilgeous-Alexander</strong>
+          </div>
         </div>
       </section>
     </main>
