@@ -792,8 +792,12 @@
         { key: "wins_gap_hbb_bridge", label: "HBB Gap", render: (row) => formatFloat(numeric(row, "wins_gap_hbb_bridge"), 3) },
       ];
 
-      renderTable(teamTable, currentBundle.team_comparison || [], teamColumns, NUMBER(viewLimit.value, 20));
-      renderTable(playerTable, currentBundle.player_comparisons || [], playerColumns, NUMBER(viewLimit.value, 20));
+      if (teamTable) {
+        renderTable(teamTable, currentBundle.team_comparison || [], teamColumns, NUMBER(viewLimit.value, 20));
+      }
+      if (playerTable) {
+        renderTable(playerTable, currentBundle.player_comparisons || [], playerColumns, NUMBER(viewLimit.value, 20));
+      }
       setSummary(summary, [
         ["Teams", currentBundle.team_comparison?.length || 0],
         ["Player Matchups", currentBundle.player_comparisons?.length || 0],
