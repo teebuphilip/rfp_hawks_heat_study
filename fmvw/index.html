@@ -6,61 +6,69 @@
     <title>Fair Market Value Methodology - FMVW View</title>
     <link rel="stylesheet" href="../style.css" />
   </head>
-  <body data-app="team">
+  <body data-app="fmvw">
     <header>
       <div class="wrap">
         <div class="eyebrow">DBB2 Basketball Ops</div>
         <h1>FMVW View</h1>
-        <p>Player-first comparison page. The point is the individual matchups and the teammate-neutral market value logic behind them.</p>
+        <p>Pick two players and compare their teammate-neutral market value and wins-equivalent output.</p>
         <div class="subline">
-          <span class="chip">Jokic vs Gobert</span>
-          <span class="chip">Luka vs SGA</span>
-          <span class="chip">Teammate neutral</span>
+          <span class="chip">Player A</span>
+          <span class="chip">Player B</span>
+          <span class="chip">FMV</span>
           <span class="chip">Wins bridge</span>
           <a class="chip" href="../">Back to Hub</a>
         </div>
       </div>
     </header>
 
-    <main data-app-root data-sample="../data/basketball_ops_comparison_summary.json">
+    <main data-app-root data-sample="../data/mini_fmv_player_values.csv" data-league="../data/league_table.json">
       <div class="split">
         <section class="card">
-          <h2>Controls</h2>
+          <h2>Compare Two Players</h2>
           <div class="controls">
             <div class="field span-6">
-              <label>Load comparison bundle</label>
-              <input data-file-input type="file" accept=".json" />
+              <label>Player A</label>
+              <input data-player-a list="player-pool" type="text" placeholder="Type a player name" />
             </div>
-            <div class="field span-3">
-              <label>Rows shown</label>
-              <input data-view-limit type="number" min="5" step="5" value="20" />
+            <div class="field span-6">
+              <label>Player B</label>
+              <input data-player-b list="player-pool" type="text" placeholder="Type a player name" />
+            </div>
+            <div class="field span-6">
+              <label>Load player pool</label>
+              <input data-file-input type="file" accept=".csv,.json" />
+            </div>
+            <div class="field span-6">
+              <label>Reference</label>
+              <div class="toolbar">
+                <button class="ghost" data-load-demo>Load Demo Pool</button>
+                <button class="primary" data-compare>Compare Players</button>
+                <button data-download-csv disabled>Download CSV</button>
+                <button data-download-json disabled>Download JSON</button>
+              </div>
             </div>
           </div>
-          <div class="toolbar" style="margin-top: 14px;">
-            <button class="ghost" data-load-demo>Load Demo Bundle</button>
-            <button class="primary" data-run>Render Comparison</button>
-            <button data-download-csv disabled>Download CSV</button>
-            <button data-download-json disabled>Download JSON</button>
-          </div>
-          <p class="small muted" data-status style="margin-top: 12px;">Waiting for comparison bundle.</p>
+          <p class="small muted" data-status style="margin-top: 12px;">Waiting for player pool.</p>
+          <datalist id="player-pool" data-player-pool></datalist>
         </section>
 
         <aside class="card">
           <h2>Summary</h2>
           <div data-summary class="list"></div>
-          <p class="small muted" style="margin-top: 14px;">Compare players first, then use the team table only as supporting context.</p>
+          <div data-gap-summary class="list" style="margin-top: 14px;"></div>
         </aside>
       </div>
 
       <section class="section card">
         <div class="table-actions">
           <div>
-            <h2 style="margin-bottom: 4px;">Player Comparisons</h2>
-            <p class="small muted">Base FMV bridge and HBB-adjusted comparison for the headline matchups.</p>
+            <h2 style="margin-bottom: 4px;">Player Comparison</h2>
+            <p class="small muted">FMV, wins-equivalent, HBB factor, and HBB-adjusted wins for the selected pair.</p>
           </div>
         </div>
         <div class="table-wrap">
-          <div data-player-table></div>
+          <div data-table></div>
         </div>
       </section>
     </main>

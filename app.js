@@ -428,6 +428,14 @@
     return parseCSV(text);
   }
 
+  async function fetchJson(path) {
+    const response = await fetch(path, { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error(`Failed to load ${path}`);
+    }
+    return JSON.parse(await response.text());
+  }
+
   async function fetchComparisonBundle(path) {
     const response = await fetch(path, { cache: "no-store" });
     if (!response.ok) {
@@ -658,37 +666,72 @@
     await loadDemo();
   }
 
+  function normalizeText(value) {
+    return String(value || "")
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+  }
+
+  function buildHbbLookup(bundle) {
+    const lookup = {};
+    for (const row of Array.isArray(bundle?.rows) ? bundle.rows : []) {
+      const team = String(row.team || "").trim().toUpperCase();
+      if (team) lookup[team] = NUMBER(row.team_hbb_factor, 1.0);
+    }
+    return lookup;
+  }
+
   async function mountFMVW(root) {
-    const samplePath = root.dataset.sample || DEFAULTS.fmvwFeed;
+    const samplePath = root.dataset.sample || DEFAULTS.fmvFeed;
+    const leaguePath = root.dataset.league || DEFAULTS.leagueTableFeed;
     const status = root.querySelector("[data-status]");
     const summary = root.querySelector("[data-summary]");
+    const gapSummary = root.querySelector("[data-gap-summary]");
     const table = root.querySelector("[data-table]");
     const fileInput = root.querySelector("[data-file-input]");
     const loadDemoBtn = root.querySelector("[data-load-demo]");
-    const runBtn = root.querySelector("[data-run]");
+    const compareBtn = root.querySelector("[data-compare]");
     const downloadCsvBtn = root.querySelector("[data-download-csv]");
     const downloadJsonBtn = root.querySelector("[data-download-json]");
-    const viewLimit = root.querySelector("[data-view-limit]");
+    const playerAInput = root.querySelector("[data-player-a]");
+    const playerBInput = root.querySelector("[data-player-b]");
+    const playerPool = root.querySelector("[data-player-pool]");
 
     let currentRows = [];
+    let leagueBundle = {};
     let currentResult = null;
 
     const render = () => {
       if (!currentResult) return;
       const columns = [
+        { key: "slot", label: "Slot" },
         { key: "player_name", label: "Player" },
         { key: "team", label: "Team" },
-        { key: "sim_median_salary", label: "Median FMV", render: (row) => formatCurrency(numeric(row, "sim_median_salary")) },
+        { key: "position", label: "Pos" },
+        { key: "sim_median_salary", label: "FMV", render: (row) => formatCurrency(numeric(row, "sim_median_salary")) },
         { key: "wins_equivalent", label: "Wins Eq", render: (row) => formatFloat(numeric(row, "wins_equivalent"), 3) },
-        { key: "wins_p25", label: "Wins P25", render: (row) => formatFloat(numeric(row, "wins_p25"), 3) },
-        { key: "wins_p75", label: "Wins P75", render: (row) => formatFloat(numeric(row, "wins_p75"), 3) },
+        { key: "hbb_factor", label: "HBB", render: (row) => formatFloat(numeric(row, "hbb_factor"), 3) },
+        { key: "hbb_wins", label: "HBB Wins", render: (row) => formatFloat(numeric(row, "hbb_wins"), 3) },
+        { key: "fmv_band", label: "Band" },
       ];
-      renderTable(table, currentResult.rows, columns, NUMBER(viewLimit.value, 50));
+      renderTable(table, currentResult.rows, columns, 2);
       setSummary(summary, [
-        ["Players", currentResult.summary.playerRows],
-        ["Replacement", formatCurrency(currentResult.summary.replacementSalary)],
-        ["$ / Win", formatCurrency(currentResult.summary.salaryPerWin)],
-        ["Teams", currentResult.summary.teamTotals.length],
+        ["Left", `${currentResult.left.player_name} (${currentResult.left.team})`],
+        ["Right", `${currentResult.right.player_name} (${currentResult.right.team})`],
+        ["Base Gap", formatFloat(currentResult.gap.wins_gap_fmv_bridge, 3)],
+        ["HBB Gap", formatFloat(currentResult.gap.wins_gap_hbb_bridge, 3)],
+      ]);
+      setSummary(gapSummary, [
+        ["Left FMV", formatCurrency(currentResult.left.sim_median_salary)],
+        ["Right FMV", formatCurrency(currentResult.right.sim_median_salary)],
+        ["Left Wins", formatFloat(currentResult.left.wins_equivalent, 3)],
+        ["Right Wins", formatFloat(currentResult.right.wins_equivalent, 3)],
+        ["Left HBB", formatFloat(currentResult.left_hbb_factor, 3)],
+        ["Right HBB", formatFloat(currentResult.right_hbb_factor, 3)],
+        ["Left HBB Wins", formatFloat(currentResult.left_hbb_wins, 3)],
+        ["Right HBB Wins", formatFloat(currentResult.right_hbb_wins, 3)],
       ]);
       downloadCsvBtn.disabled = false;
       downloadJsonBtn.disabled = false;
@@ -696,22 +739,63 @@
 
     const run = () => {
       if (!currentRows.length) {
-        status.textContent = "Load an FMV file first.";
+        status.textContent = "Load a player pool first.";
         return;
       }
-      status.textContent = "Running FMVW bridge...";
-      currentResult = buildFmvw(currentRows, {
-        replacementSalary: getValue(root, "[data-replacement-salary]", DEFAULTS.replacementSalary),
-        salaryPerWin: getValue(root, "[data-salary-per-win]", DEFAULTS.salaryPerWin),
-      });
-      status.textContent = `Built ${currentResult.summary.playerRows} player bridge rows.`;
+      const leftName = String(playerAInput?.value || "").trim();
+      const rightName = String(playerBInput?.value || "").trim();
+      const leftRow = currentRows.find((row) => normalizeText(row.player_name) === normalizeText(leftName));
+      const rightRow = currentRows.find((row) => normalizeText(row.player_name) === normalizeText(rightName));
+      if (!leftRow || !rightRow) {
+        status.textContent = "Select two players from the loaded pool.";
+        return;
+      }
+
+      const ranked = buildFmvw([leftRow, rightRow], {
+        replacementSalary: DEFAULTS.replacementSalary,
+        salaryPerWin: DEFAULTS.salaryPerWin,
+      }).rows;
+      const byName = new Map(ranked.map((row) => [normalizeText(row.player_name), row]));
+      const hbbLookup = buildHbbLookup(leagueBundle);
+      const left = byName.get(normalizeText(leftName));
+      const right = byName.get(normalizeText(rightName));
+      const leftHbbFactor = NUMBER(hbbLookup[String(left.team || "").trim().toUpperCase()], 1.0);
+      const rightHbbFactor = NUMBER(hbbLookup[String(right.team || "").trim().toUpperCase()], 1.0);
+      const leftHbbWins = Number((left.wins_equivalent * leftHbbFactor).toFixed(3));
+      const rightHbbWins = Number((right.wins_equivalent * rightHbbFactor).toFixed(3));
+
+      currentResult = {
+        left,
+        right,
+        left_hbb_factor: leftHbbFactor,
+        right_hbb_factor: rightHbbFactor,
+        left_hbb_wins: leftHbbWins,
+        right_hbb_wins: rightHbbWins,
+        gap: {
+          salary_gap: Number((left.sim_median_salary - right.sim_median_salary).toFixed(2)),
+          wins_gap_fmv_bridge: Number((left.wins_equivalent - right.wins_equivalent).toFixed(3)),
+          wins_gap_hbb_bridge: Number((leftHbbWins - rightHbbWins).toFixed(3)),
+        },
+        rows: [
+          { slot: "A", ...left, hbb_factor: leftHbbFactor, hbb_wins: leftHbbWins },
+          { slot: "B", ...right, hbb_factor: rightHbbFactor, hbb_wins: rightHbbWins },
+        ],
+      };
+      status.textContent = "Comparison ready.";
       render();
     };
 
     const loadDemo = async () => {
-      status.textContent = "Loading demo FMV file...";
+      status.textContent = "Loading player pool...";
       currentRows = await fetchRows(samplePath);
-      status.textContent = `Loaded ${currentRows.length} FMV rows from demo file.`;
+      leagueBundle = await fetchJson(leaguePath);
+      const sorted = [...currentRows].sort((a, b) => String(a.player_name || "").localeCompare(String(b.player_name || "")));
+      if (playerPool) {
+        playerPool.innerHTML = sorted.map((row) => `<option value="${escapeCSV(row.player_name)}"></option>`).join("");
+      }
+      if (playerAInput && !playerAInput.value) playerAInput.value = "Nikola Jokić";
+      if (playerBInput && !playerBInput.value) playerBInput.value = "Rudy Gobert";
+      status.textContent = `Loaded ${currentRows.length} players.`;
       run();
     };
 
@@ -726,17 +810,18 @@
     });
 
     loadDemoBtn.addEventListener("click", loadDemo);
-    runBtn.addEventListener("click", run);
+    compareBtn.addEventListener("click", run);
+    playerAInput?.addEventListener("change", run);
+    playerBInput?.addEventListener("change", run);
     downloadCsvBtn.addEventListener("click", () => {
       if (!currentResult) return;
-      const csv = toCSV(currentResult.rows);
+      const csv = toCSV(currentResult.rows, ["slot", "player_name", "team", "position", "sim_median_salary", "wins_equivalent", "hbb_factor", "hbb_wins", "fmv_band"]);
       downloadFile("fmvw_output.csv", csv, "text/csv");
     });
     downloadJsonBtn.addEventListener("click", () => {
       if (!currentResult) return;
       downloadFile("fmvw_output.json", JSON.stringify(currentResult, null, 2) + "\n", "application/json");
     });
-    viewLimit.addEventListener("change", render);
 
     await loadDemo();
   }
