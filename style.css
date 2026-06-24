@@ -76,6 +76,7 @@ p { margin: 8px 0 0; color: var(--muted); }
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 28px;
+  margin-top: 42px;
 }
 
 .grid > a {
