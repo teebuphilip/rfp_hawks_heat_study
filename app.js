@@ -694,10 +694,13 @@
 
   async function mountFMVW(root) {
     const samplePath = root.dataset.sample || DEFAULTS.fmvFeed;
+    const projectionPath = root.dataset.projection || DEFAULTS.fmvwProjectionFeed;
     const leaguePath = root.dataset.league || DEFAULTS.leagueTableFeed;
     const status = root.querySelector("[data-status]");
     const summary = root.querySelector("[data-summary]");
     const gapSummary = root.querySelector("[data-gap-summary]");
+    const projectionSummary = root.querySelector("[data-projection-summary]");
+    const projectionTable = root.querySelector("[data-projection-table]");
     const table = root.querySelector("[data-table]");
     const compareBtn = root.querySelector("[data-compare]");
     const playerAInput = root.querySelector("[data-player-a]");
@@ -705,6 +708,7 @@
 
     let currentRows = [];
     let leagueBundle = {};
+    let projectionBundle = {};
     let currentResult = null;
 
     const populatePlayerSelects = (rows) => {
@@ -756,8 +760,34 @@
         ["Left HBB Wins", formatFloat(currentResult.left_hbb_wins, 3)],
         ["Right HBB Wins", formatFloat(currentResult.right_hbb_wins, 3)],
       ]);
-      downloadCsvBtn.disabled = false;
-      downloadJsonBtn.disabled = false;
+
+      const projRows = Array.isArray(projectionBundle.rows) ? projectionBundle.rows : [];
+      if (projectionSummary) {
+        const top = projRows[0];
+        projectionSummary.textContent = top
+          ? `${projectionBundle.title || "DBB2 Teammate-Neutral Projection 26-27"} loaded. Top player: ${top.player_name} (${top.team}) at ${formatFloat(top.projection?.points, 1)} PTS, ${formatFloat(top.projection?.rebounds, 1)} REB, ${formatFloat(top.projection?.assists, 1)} AST over ${top.projection?.minutes ?? "--"} minutes.`
+          : "Projection feed loaded.";
+      }
+      if (projectionTable) {
+        renderTable(
+          projectionTable,
+          projRows,
+          [
+            { key: "player_name", label: "Player" },
+            { key: "team", label: "Team" },
+            { key: "position", label: "Pos" },
+            { key: "projection.minutes", label: "MP", render: (row) => formatFloat(row.projection?.minutes, 1) },
+            { key: "projection.points", label: "PTS", render: (row) => formatFloat(row.projection?.points, 1) },
+            { key: "projection.rebounds", label: "REB", render: (row) => formatFloat(row.projection?.rebounds, 1) },
+            { key: "projection.assists", label: "AST", render: (row) => formatFloat(row.projection?.assists, 1) },
+            { key: "projection.steals", label: "STL", render: (row) => formatFloat(row.projection?.steals, 1) },
+            { key: "projection.blocks", label: "BLK", render: (row) => formatFloat(row.projection?.blocks, 1) },
+            { key: "projection.fantasy_points", label: "FP", render: (row) => formatFloat(row.projection?.fantasy_points, 1) },
+            { key: "sim_median_salary", label: "FMV", render: (row) => formatCurrency(numeric(row, "sim_median_salary")) },
+          ],
+          5
+        );
+      }
     };
 
     const run = () => {
@@ -810,8 +840,14 @@
 
     const loadPool = async () => {
       status.textContent = "Loading 25-26 top 200 pool...";
-      currentRows = await fetchRows(samplePath);
-      leagueBundle = await fetchJson(leaguePath);
+      const [pool, league, projection] = await Promise.all([
+        fetchRows(samplePath),
+        fetchJson(leaguePath),
+        fetchJson(projectionPath),
+      ]);
+      currentRows = pool;
+      leagueBundle = league;
+      projectionBundle = projection;
       populatePlayerSelects(currentRows);
       status.textContent = `Loaded ${currentRows.length} players from the 25-26 top 200 pool.`;
       run();
