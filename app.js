@@ -751,8 +751,8 @@
         ["HBB Gap", formatFloat(currentResult.gap.wins_gap_hbb_bridge, 3)],
       ]);
       setSummary(gapSummary, [
-        ["Left FMV", formatCurrency(currentResult.left.sim_median_salary)],
-        ["Right FMV", formatCurrency(currentResult.right.sim_median_salary)],
+        ["Left FMV", formatCurrency(numeric(currentResult.left, "sim_median_salary"))],
+        ["Right FMV", formatCurrency(numeric(currentResult.right, "sim_median_salary"))],
         ["Left Wins", formatFloat(currentResult.left.wins_equivalent, 3)],
         ["Right Wins", formatFloat(currentResult.right.wins_equivalent, 3)],
         ["Left HBB", formatFloat(currentResult.left_hbb_factor, 3)],
