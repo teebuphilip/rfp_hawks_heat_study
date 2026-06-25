@@ -781,7 +781,6 @@
           projectionTable,
           selectedProjectionRows,
           [
-            { key: "side", label: "Slot" },
             { key: "player_name", label: "Player" },
             { key: "team", label: "Team" },
             { key: "position", label: "Pos" },
