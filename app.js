@@ -700,8 +700,6 @@
     const gapSummary = root.querySelector("[data-gap-summary]");
     const table = root.querySelector("[data-table]");
     const compareBtn = root.querySelector("[data-compare]");
-    const downloadCsvBtn = root.querySelector("[data-download-csv]");
-    const downloadJsonBtn = root.querySelector("[data-download-json]");
     const playerAInput = root.querySelector("[data-player-a]");
     const playerBInput = root.querySelector("[data-player-b]");
 
@@ -822,15 +820,6 @@
     compareBtn.addEventListener("click", run);
     playerAInput?.addEventListener("change", run);
     playerBInput?.addEventListener("change", run);
-    downloadCsvBtn.addEventListener("click", () => {
-      if (!currentResult) return;
-      const csv = toCSV(currentResult.rows, ["slot", "player_name", "team", "position", "sim_median_salary", "wins_equivalent", "hbb_factor", "hbb_wins", "fmv_band"]);
-      downloadFile("fmvw_output.csv", csv, "text/csv");
-    });
-    downloadJsonBtn.addEventListener("click", () => {
-      if (!currentResult) return;
-      downloadFile("fmvw_output.json", JSON.stringify(currentResult, null, 2) + "\n", "application/json");
-    });
 
     await loadPool();
   }
