@@ -762,17 +762,26 @@
       ]);
 
       const projRows = Array.isArray(projectionBundle.rows) ? projectionBundle.rows : [];
+      const selectedProjectionRows = [
+        currentResult.left,
+        currentResult.right,
+      ].map((side) => {
+        const projectionRow = projRows.find((row) => normalizeText(row.player_name) === normalizeText(side.player_name));
+        return projectionRow ? { side: side.slot, ...projectionRow } : null;
+      }).filter(Boolean);
       if (projectionSummary) {
-        const top = projRows[0];
-        projectionSummary.textContent = top
-          ? `${projectionBundle.title || "DBB2 Teammate-Neutral Projection 26-27"} loaded. Top player: ${top.player_name} (${top.team}) at ${formatFloat(top.projection?.points, 1)} PTS, ${formatFloat(top.projection?.rebounds, 1)} REB, ${formatFloat(top.projection?.assists, 1)} AST over ${top.projection?.minutes ?? "--"} minutes.`
+        const leftProj = selectedProjectionRows.find((row) => row.side === "A");
+        const rightProj = selectedProjectionRows.find((row) => row.side === "B");
+        projectionSummary.textContent = leftProj && rightProj
+          ? `${projectionBundle.title || "DBB2 Teammate-Neutral Projection 26-27"} loaded for the selected players.`
           : "Projection feed loaded.";
       }
       if (projectionTable) {
         renderTable(
           projectionTable,
-          projRows,
+          selectedProjectionRows,
           [
+            { key: "side", label: "Slot" },
             { key: "player_name", label: "Player" },
             { key: "team", label: "Team" },
             { key: "position", label: "Pos" },
@@ -785,7 +794,7 @@
             { key: "projection.fantasy_points", label: "FP", render: (row) => formatFloat(row.projection?.fantasy_points, 1) },
             { key: "sim_median_salary", label: "FMV", render: (row) => formatCurrency(numeric(row, "sim_median_salary")) },
           ],
-          5
+          2
         );
       }
     };
