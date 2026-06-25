@@ -702,6 +702,7 @@
     const projectionSummary = root.querySelector("[data-projection-summary]");
     const projectionTable = root.querySelector("[data-projection-table]");
     const table = root.querySelector("[data-table]");
+    const compareHeadline = root.querySelector("[data-compare-headline]");
     const compareBtn = root.querySelector("[data-compare]");
     const playerAInput = root.querySelector("[data-player-a]");
     const playerBInput = root.querySelector("[data-player-b]");
@@ -760,6 +761,11 @@
         ["Left HBB Wins", formatFloat(currentResult.left_hbb_wins, 3)],
         ["Right HBB Wins", formatFloat(currentResult.right_hbb_wins, 3)],
       ]);
+      if (compareHeadline) {
+        const gap = Number(currentResult.gap.wins_gap_hbb_bridge || 0);
+        const betterWorse = gap >= 0 ? "better than" : "worse than";
+        compareHeadline.textContent = `Under the current FMVW bridge and HBB adjustment, ${currentResult.left.player_name} is ${Math.abs(gap).toFixed(3)} wins ${betterWorse} ${currentResult.right.player_name}.`;
+      }
 
       const projRows = Array.isArray(projectionBundle.rows) ? projectionBundle.rows : [];
       const selectedProjectionRows = [
