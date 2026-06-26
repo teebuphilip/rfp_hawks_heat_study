@@ -45,6 +45,22 @@
     minutes: 0.75,
   };
 
+  const OFFENSE_PROXY_WEIGHTS = {
+    points: 2.0,
+    assists: 1.5,
+    tpm: 1.0,
+    fg_pct: 0.75,
+    ft_pct: 0.5,
+    turnovers: -1.0,
+  };
+
+  const DEFENSE_PROXY_WEIGHTS = {
+    rebounds: 0.1,
+    steals: 3.0,
+    blocks: 5.5,
+    turnovers: -2.0,
+  };
+
   const NUMBER = (value, fallback = 0) => {
     const n = Number(value);
     return Number.isFinite(n) ? n : fallback;
@@ -692,6 +708,48 @@
     return lookup;
   }
 
+  function proxySignal(score) {
+    if (!Number.isFinite(score)) return "INSUFFICIENT_BASELINE";
+    if (score >= 1.0) return "SIGNIFICANTLY_ABOVE_BASELINE";
+    if (score >= 0.35) return "ABOVE_BASELINE";
+    if (score <= -1.0) return "SIGNIFICANTLY_BELOW_BASELINE";
+    if (score <= -0.35) return "BELOW_BASELINE";
+    return "ON_BASELINE";
+  }
+
+  function buildProxyLookup(rows) {
+    const prepared = (Array.isArray(rows) ? rows : []).map((row) => ({
+      player_name: String(row.player_name || row.player || row.name || "").trim(),
+      position: String(row.position || "ALL").trim().toUpperCase() || "ALL",
+      offense_raw:
+        OFFENSE_PROXY_WEIGHTS.points * numeric(row, "PTS") +
+        OFFENSE_PROXY_WEIGHTS.assists * numeric(row, "AST") +
+        OFFENSE_PROXY_WEIGHTS.tpm * numeric(row, "THREE_PM") +
+        OFFENSE_PROXY_WEIGHTS.fg_pct * numeric(row, "FG_PCT") +
+        OFFENSE_PROXY_WEIGHTS.ft_pct * numeric(row, "FT_PCT") +
+        OFFENSE_PROXY_WEIGHTS.turnovers * numeric(row, "TO"),
+      defense_raw:
+        DEFENSE_PROXY_WEIGHTS.rebounds * numeric(row, "REB") +
+        DEFENSE_PROXY_WEIGHTS.steals * numeric(row, "STL") +
+        DEFENSE_PROXY_WEIGHTS.blocks * numeric(row, "BLK") +
+        DEFENSE_PROXY_WEIGHTS.turnovers * numeric(row, "TO"),
+    }));
+    const groups = groupBy(prepared, "position");
+    for (const [, members] of groups.entries()) {
+      const offenseMean = mean(members.map((row) => row.offense_raw));
+      const offenseStd = std(members.map((row) => row.offense_raw));
+      const defenseMean = mean(members.map((row) => row.defense_raw));
+      const defenseStd = std(members.map((row) => row.defense_raw));
+      members.forEach((row) => {
+        row.offense_proxy_z = zScore(row.offense_raw, offenseMean, offenseStd);
+        row.defense_proxy_z = zScore(row.defense_raw, defenseMean, defenseStd);
+        row.offense_proxy_signal = proxySignal(row.offense_proxy_z);
+        row.defense_proxy_signal = proxySignal(row.defense_proxy_z);
+      });
+    }
+    return new Map(prepared.map((row) => [normalizeText(row.player_name), row]));
+  }
+
   async function mountFMVW(root) {
     const samplePath = root.dataset.sample || DEFAULTS.fmvFeed;
     const projectionPath = root.dataset.projection || DEFAULTS.fmvwProjectionFeed;
@@ -703,6 +761,7 @@
     const projectionTable = root.querySelector("[data-projection-table]");
     const table = root.querySelector("[data-table]");
     const compareHeadline = root.querySelector("[data-compare-headline]");
+    const proxyCallout = root.querySelector("[data-proxy-callout]");
     const compareBtn = root.querySelector("[data-compare]");
     const playerAInput = root.querySelector("[data-player-a]");
     const playerBInput = root.querySelector("[data-player-b]");
@@ -742,6 +801,8 @@
         { key: "wins_equivalent", label: "Wins Eq", render: (row) => formatFloat(numeric(row, "wins_equivalent"), 3) },
         { key: "hbb_factor", label: "HBB", render: (row) => formatFloat(numeric(row, "hbb_factor"), 3) },
         { key: "hbb_wins", label: "HBB Wins", render: (row) => formatFloat(numeric(row, "hbb_wins"), 3) },
+        { key: "offense_proxy_z", label: "Off Proxy", render: (row) => formatFloat(numeric(row, "offense_proxy_z"), 3) },
+        { key: "defense_proxy_z", label: "Def Proxy", render: (row) => formatFloat(numeric(row, "defense_proxy_z"), 3) },
         { key: "fmv_band", label: "Band" },
       ];
       renderTable(table, currentResult.rows, columns, 2);
@@ -760,11 +821,18 @@
         ["Right HBB", formatFloat(currentResult.right_hbb_factor, 3)],
         ["Left HBB Wins", formatFloat(currentResult.left_hbb_wins, 3)],
         ["Right HBB Wins", formatFloat(currentResult.right_hbb_wins, 3)],
+        ["Left Off Proxy", formatFloat(currentResult.left.offense_proxy_z, 3)],
+        ["Left Def Proxy", formatFloat(currentResult.left.defense_proxy_z, 3)],
+        ["Right Off Proxy", formatFloat(currentResult.right.offense_proxy_z, 3)],
+        ["Right Def Proxy", formatFloat(currentResult.right.defense_proxy_z, 3)],
       ]);
       if (compareHeadline) {
         const gap = Number(currentResult.gap.wins_gap_hbb_bridge || 0);
         const betterWorse = gap >= 0 ? "better than" : "worse than";
         compareHeadline.textContent = `Under the current FMVW bridge and HBB adjustment, ${currentResult.left.player_name} is ${Math.abs(gap).toFixed(3)} wins ${betterWorse} ${currentResult.right.player_name}.`;
+      }
+      if (proxyCallout) {
+        proxyCallout.textContent = `Proxy read: ${currentResult.left.player_name} off ${formatFloat(currentResult.left.offense_proxy_z, 3)}, def ${formatFloat(currentResult.left.defense_proxy_z, 3)} | ${currentResult.right.player_name} off ${formatFloat(currentResult.right.offense_proxy_z, 3)}, def ${formatFloat(currentResult.right.defense_proxy_z, 3)}`;
       }
 
       const projRows = Array.isArray(projectionBundle.rows) ? projectionBundle.rows : [];
@@ -831,9 +899,13 @@
       const leftHbbWins = Number((left.wins_equivalent * leftHbbFactor).toFixed(3));
       const rightHbbWins = Number((right.wins_equivalent * rightHbbFactor).toFixed(3));
 
+      const proxyLookup = buildProxyLookup(currentRows);
+      const leftProxy = proxyLookup.get(normalizeText(left.player_name)) || {};
+      const rightProxy = proxyLookup.get(normalizeText(right.player_name)) || {};
+
       currentResult = {
-        left,
-        right,
+        left: { ...left, ...leftProxy },
+        right: { ...right, ...rightProxy },
         left_hbb_factor: leftHbbFactor,
         right_hbb_factor: rightHbbFactor,
         left_hbb_wins: leftHbbWins,
@@ -844,8 +916,8 @@
           wins_gap_hbb_bridge: Number((leftHbbWins - rightHbbWins).toFixed(3)),
         },
         rows: [
-          { slot: "A", ...left, hbb_factor: leftHbbFactor, hbb_wins: leftHbbWins },
-          { slot: "B", ...right, hbb_factor: rightHbbFactor, hbb_wins: rightHbbWins },
+          { slot: "A", ...left, ...leftProxy, hbb_factor: leftHbbFactor, hbb_wins: leftHbbWins },
+          { slot: "B", ...right, ...rightProxy, hbb_factor: rightHbbFactor, hbb_wins: rightHbbWins },
         ],
       };
       status.textContent = "Comparison ready.";
