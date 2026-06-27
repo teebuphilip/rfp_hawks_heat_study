@@ -7,7 +7,7 @@
     salaryCap: 154647000,
     teamCount: 30,
     rosterSlots: 12,
-    sims: 500,
+    sims: 1000,
     seed: 42,
     noiseSigma: 0.45,
     replacementSalary: 2000000,
