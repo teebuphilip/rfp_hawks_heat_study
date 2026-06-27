@@ -852,7 +852,9 @@
         compareHeadline.textContent = `Under the current FMVW bridge, HBB adjustment, and proxy weighting, ${currentResult.left.player_name} is ${Math.abs(gap).toFixed(3)} proxy-adjusted wins ${betterWorse} ${currentResult.right.player_name}.`;
       }
       if (proxyCallout) {
-        proxyCallout.textContent = `Proxy read: ${currentResult.left.player_name} off ${formatFloat(currentResult.left.offense_proxy_z, 3)}, def ${formatFloat(currentResult.left.defense_proxy_z, 3)} | ${currentResult.right.player_name} off ${formatFloat(currentResult.right.offense_proxy_z, 3)}, def ${formatFloat(currentResult.right.defense_proxy_z, 3)}. These proxy scores now feed the proxy-adjusted wins number below.`;
+        const leftTo = formatFloat(numeric(currentResult.left, "turnovers"), 1);
+        const rightTo = formatFloat(numeric(currentResult.right, "turnovers"), 1);
+        proxyCallout.textContent = `Proxy read: ${currentResult.left.player_name} off ${formatFloat(currentResult.left.offense_proxy_z, 3)}, def ${formatFloat(currentResult.left.defense_proxy_z, 3)} | ${currentResult.right.player_name} off ${formatFloat(currentResult.right.offense_proxy_z, 3)}, def ${formatFloat(currentResult.right.defense_proxy_z, 3)}. Turnovers: ${currentResult.left.player_name} ${leftTo}, ${currentResult.right.player_name} ${rightTo}. FTA is not in the current feed.`;
       }
 
       const projRows = Array.isArray(projectionBundle.rows) ? projectionBundle.rows : [];
