@@ -721,18 +721,19 @@
     const prepared = (Array.isArray(rows) ? rows : []).map((row) => ({
       player_name: String(row.player_name || row.player || row.name || "").trim(),
       position: String(row.position || "ALL").trim().toUpperCase() || "ALL",
+      source: row.projection || row,
       offense_raw:
-        OFFENSE_PROXY_WEIGHTS.points * numeric(row, "PTS") +
-        OFFENSE_PROXY_WEIGHTS.assists * numeric(row, "AST") +
-        OFFENSE_PROXY_WEIGHTS.tpm * numeric(row, "THREE_PM") +
-        OFFENSE_PROXY_WEIGHTS.fg_pct * numeric(row, "FG_PCT") +
-        OFFENSE_PROXY_WEIGHTS.ft_pct * numeric(row, "FT_PCT") +
-        OFFENSE_PROXY_WEIGHTS.turnovers * numeric(row, "TO"),
+        OFFENSE_PROXY_WEIGHTS.points * numeric(row.projection || row, "points") +
+        OFFENSE_PROXY_WEIGHTS.assists * numeric(row.projection || row, "assists") +
+        OFFENSE_PROXY_WEIGHTS.tpm * numeric(row.projection || row, "three_pt_pct") +
+        OFFENSE_PROXY_WEIGHTS.fg_pct * numeric(row.projection || row, "fg_pct") +
+        OFFENSE_PROXY_WEIGHTS.ft_pct * numeric(row.projection || row, "ft_pct") +
+        OFFENSE_PROXY_WEIGHTS.turnovers * numeric(row.projection || row, "turnovers"),
       defense_raw:
-        DEFENSE_PROXY_WEIGHTS.rebounds * numeric(row, "REB") +
-        DEFENSE_PROXY_WEIGHTS.steals * numeric(row, "STL") +
-        DEFENSE_PROXY_WEIGHTS.blocks * numeric(row, "BLK") +
-        DEFENSE_PROXY_WEIGHTS.turnovers * numeric(row, "TO"),
+        DEFENSE_PROXY_WEIGHTS.rebounds * numeric(row.projection || row, "rebounds") +
+        DEFENSE_PROXY_WEIGHTS.steals * numeric(row.projection || row, "steals") +
+        DEFENSE_PROXY_WEIGHTS.blocks * numeric(row.projection || row, "blocks") +
+        DEFENSE_PROXY_WEIGHTS.turnovers * numeric(row.projection || row, "turnovers"),
     }));
     const groups = groupBy(prepared, "position");
     for (const [, members] of groups.entries()) {
@@ -899,7 +900,7 @@
       const leftHbbWins = Number((left.wins_equivalent * leftHbbFactor).toFixed(3));
       const rightHbbWins = Number((right.wins_equivalent * rightHbbFactor).toFixed(3));
 
-      const proxyLookup = buildProxyLookup(currentRows);
+      const proxyLookup = buildProxyLookup(projectionBundle.rows || currentRows);
       const leftProxy = proxyLookup.get(normalizeText(left.player_name)) || {};
       const rightProxy = proxyLookup.get(normalizeText(right.player_name)) || {};
 
