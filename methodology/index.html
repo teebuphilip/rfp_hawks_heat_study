@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DBB2 Basketball Ops Methodology</title>
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body data-app="methodology">
+    <header>
+      <div class="wrap">
+        <div class="eyebrow">DBB2 Basketball Ops</div>
+        <h1>Methodology</h1>
+        <p>End-to-end plain-English description of how DBB2 turns player inputs into FMV, FMVW, and a proxy-adjusted wins number.</p>
+        <div class="subline">
+          <span class="chip">Raw inputs</span>
+          <span class="chip">Context-neutral player value</span>
+          <span class="chip">FMV</span>
+          <span class="chip">FMVW</span>
+          <span class="chip">Proxy-adjusted wins</span>
+          <a class="chip" href="../">Back to Hub</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="section card">
+        <h2>What This Page Covers</h2>
+        <div class="list">
+          <div class="metric">
+            <span class="muted">Scope</span>
+            <strong>The current operating method used by the FMVW page and the basketball-ops comparison summary.</strong>
+          </div>
+          <div class="metric">
+            <span class="muted">Includes</span>
+            <strong>Player projection inputs, teammate-neutral normalization, FMV pricing, FMVW bridge, HBB adjustment, proxy layer, and the current configuration knobs.</strong>
+          </div>
+          <div class="metric">
+            <span class="muted">Does not pretend</span>
+            <strong>This is not a fitted player tracking model, not a medical system, and not a final defensive truth layer.</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="section card">
+        <h2>Source Files</h2>
+        <div class="list">
+          <div class="metric">
+            <span class="muted">Projection bundle</span>
+            <strong><code>data/fmvw_projection_26_27.json</code> supplies the live player feed used for the proxy layer. It carries points, rebounds, assists, steals, blocks, turnovers, FT%, FTA, and the other projection fields used on the page.</strong>
+          </div>
+          <div class="metric">
+            <span class="muted">FMV pool</span>
+            <strong><code>data/fmvw_top200_2526.csv</code> is the fixed 25-26 top-200 comparison pool for the player market view.</strong>
+          </div>
+          <div class="metric">
+            <span class="muted">League table</span>
+            <strong><code>data/league_table.json</code> carries the team HBB factors and the league-level HBB baseline used in the bridge.</strong>
+          </div>
+          <div class="metric">
+            <span class="muted">Live logic</span>
+            <strong><code>app.js</code> does the row loading, normalization, FMVW bridge, HBB application, proxy scoring, and headline rendering.</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="section card">
+        <h2>End-to-End Flow</h2>
+        <div class="list">
+          <div class="card">
+            <h3>1. Start with the projection engine</h3>
+            <p>The engine produces a season projection for each player. Core fields include minutes, points, rebounds, assists, steals, blocks, turnovers, FG%, FT%, three-point percentage, fantasy points, ceiling, floor, and consistency. In the engine output, FTA is also available and can be used as a pressure signal.</p>
+          </div>
+          <div class="card">
+            <h3>2. Load the FMV comparison pool</h3>
+            <p>The FMVW page uses a fixed top-200 pool for the 25-26 comparison surface. That pool provides the market-value side of the comparison: player name, team, position, salary-equivalent FMV, and band label. The live page also loads the 26-27 projection bundle and the league table so the comparison can read proxy and HBB values at the same time.</p>
+          </div>
+          <div class="card">
+            <h3>3. Normalize the player signal</h3>
+            <p>Player output is adjusted toward a common roster context so surrounding teammates do not dominate the evaluation. This is the teammate-neutral layer. The idea is to isolate player value before market pricing happens.</p>
+          </div>
+          <div class="card">
+            <h3>4. Price FMV</h3>
+            <p>The FMV layer turns the teammate-neutral player signal into a salary-equivalent market price. The current output is the price a player clears for inside the cap-constrained market.</p>
+          </div>
+          <div class="card">
+            <h3>5. Bridge FMV to wins</h3>
+            <p>The FMVW bridge converts salary-equivalent value into wins-equivalent output using the current replacement-level and salary-per-win constants. This gives a roster-level way to compare player value in season terms rather than only dollars.</p>
+          </div>
+          <div class="card">
+            <h3>6. Apply HBB</h3>
+            <p>HBB is a team-context multiplier read from the league table. It shifts the wins-equivalent value up or down depending on the surrounding roster, balance, support, and pressure environment.</p>
+          </div>
+          <div class="card">
+            <h3>7. Apply the proxy layer</h3>
+            <p>The current proxy layer uses box-score approximations to add an offense-first correction and a separate defense correction. The proxy layer is not the same thing as the FMVW bridge. It sits on top of it.</p>
+          </div>
+          <div class="card">
+            <h3>8. Produce proxy-adjusted wins</h3>
+            <p>The current headline number is the FMVW win total after the proxy correction is applied. That is the number shown on the FMVW page when you compare two players.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section card">
+        <h2>Current Configuration</h2>
+        <div class="list">
+          <div class="card">
+            <h3>Projection source</h3>
+            <p>Loaded from the live projection bundle, which carries minutes, scoring, rebounding, assist, turnover, shooting, and FTA fields.</p>
+          </div>
+          <div class="card">
+            <h3>FMV pool</h3>
+            <p>Fixed 25-26 top-200 player pool used for the comparison surface.</p>
+          </div>
+          <div class="card">
+            <h3>FMVW bridge constants</h3>
+            <p>Replacement salary is <code>$2,000,000</code>. Salary per win is <code>$4,000,000</code>. Those constants convert FMV dollars into the wins-equivalent bridge before HBB is applied.</p>
+          </div>
+          <div class="card">
+            <h3>HBB</h3>
+            <p>Applied as a team-level multiplier after FMVW is computed. The current league bundle carries a league HBB baseline and a team HBB factor for each team. The current league HBB baseline in the live bundle is <code>0.679</code>.</p>
+          </div>
+          <div class="card">
+            <h3>Position normalization</h3>
+            <p>Proxy z-scores are standardized within position groups so a guard is compared to guards, a wing to wings, and a big to bigs before the headline gap is shown.</p>
+          </div>
+          <div class="card">
+            <h3>Proxy wins weights</h3>
+            <p>Offense weight is compressed with a soft cap, while weak defense is penalized more than strong defense is rewarded. The exact constants are configurable in code.</p>
+          </div>
+          <div class="card">
+            <h3>Current proxy weights</h3>
+            <p>Offense proxy uses points, assists, threes, FTA, FG%, FT%, and turnovers. Defense proxy uses rebounds, steals, blocks, and turnovers. The proxy layer is intentionally box-score based for now.</p>
+          </div>
+          <div class="card">
+            <h3>Three-point input</h3>
+            <p>The current proxy uses the live feed's three-point field as a shooting signal, not as a shot-chart volume model. It is a proxy input, not a full tracking metric.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section card">
+        <h2>Current Formula</h2>
+        <div class="list">
+          <div class="card">
+            <h3>Offense proxy</h3>
+            <p><code>offense_proxy_raw = 2.0*points + 1.5*assists + 1.0*three_pt_pct + 1.5*fta + 0.75*fg_pct + 0.5*ft_pct - 1.0*turnovers</code></p>
+          </div>
+          <div class="card">
+            <h3>Defense proxy</h3>
+            <p><code>defense_proxy_raw = 0.1*rebounds + 3.0*steals + 5.5*blocks - 2.0*turnovers</code></p>
+          </div>
+          <div class="card">
+            <h3>Bridge formula</h3>
+            <p><code>wins_equivalent = (sim_median_salary - replacement_salary) / salary_per_win</code></p>
+            <p><code>hbb_wins = wins_equivalent * hbb_factor</code></p>
+            <p><code>proxy_adjusted_wins = hbb_wins + proxyWinsAdjustment(offense_proxy_z, defense_proxy_z)</code></p>
+          </div>
+          <div class="card">
+            <h3>Proxy adjustment to wins</h3>
+            <p>The offense proxy is compressed with a soft cap. The defense proxy is asymmetric: positive defense helps, but weak defense hurts more than strong defense helps. That adjustment is added to the HBB-adjusted FMVW result to produce proxy-adjusted wins.</p>
+            <p class="small muted">Current code defaults: offense weight 0.18, offense cap 1.35, defense positive weight 0.34, defense negative weight 0.69.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section card">
+        <h2>Configuration Items</h2>
+        <div class="list">
+          <div class="metric">
+            <span class="muted">Offense proxy weights</span>
+            <strong>Points 2.0, assists 1.5, threes 1.0, FTA 1.5, FG% 0.75, FT% 0.5, turnovers -1.0.</strong>
+          </div>
+          <div class="metric">
+            <span class="muted">Defense proxy weights</span>
+            <strong>Rebounds 0.1, steals 3.0, blocks 5.5, turnovers -2.0.</strong>
+          </div>
+          <div class="metric">
+            <span class="muted">Proxy wins config</span>
+            <strong>Offense weight 0.18, offense cap 1.35, defense positive weight 0.34, defense negative weight 0.69.</strong>
+          </div>
+          <div class="metric">
+            <span class="muted">HBB</span>
+            <strong>Team-context multiplier applied after the FMVW bridge and before the proxy adjustment. Current live values come from the league table file and the team HBB factor in that file is the one applied to each player.</strong>
+          </div>
+          <div class="metric">
+            <span class="muted">League HBB baseline</span>
+            <strong>The live league bundle currently reports <code>0.679</code> as the league HBB baseline.</strong>
+          </div>
+          <div class="metric">
+            <span class="muted">FTA handling</span>
+            <strong>FTA is treated as a pressure signal on offense. It increases the offensive proxy because it forces the defense into contact, fouls, and rotation stress.</strong>
+          </div>
+          <div class="metric">
+            <span class="muted">Turnovers</span>
+            <strong>Turnovers penalize the offensive proxy and also reduce the defensive proxy slightly because they are possession losses, not impact events.</strong>
+          </div>
+          <div class="metric">
+            <span class="muted">Three-point field</span>
+            <strong>The current live proxy uses the feed's three-point field as an input signal. It is configurable, but the present implementation treats it as part of the offense proxy rather than a separate shot-chart model.</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="section card">
+        <h2>How To Read The Outputs</h2>
+        <div class="list">
+          <div class="card">
+            <h3>FMV</h3>
+            <p>Salary-equivalent market price.</p>
+          </div>
+          <div class="card">
+            <h3>Wins Eq</h3>
+            <p>FMV translated to wins using the current salary-per-win bridge.</p>
+          </div>
+          <div class="card">
+            <h3>HBB Wins</h3>
+            <p>Wins-equivalent value after the team-context multiplier is applied.</p>
+          </div>
+          <div class="card">
+            <h3>Proxy Wins</h3>
+            <p>Wins after the offense-first proxy correction is layered on top of HBB Wins.</p>
+          </div>
+          <div class="card">
+            <h3>Off Proxy / Def Proxy</h3>
+            <p>Diagnostic z-scores that show how the player compares to the positional peer group on the current proxy surface.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section card">
+        <h2>Known Limits</h2>
+        <div class="list">
+          <div class="card">
+            <h3>Not a final defensive model</h3>
+            <p>The current live page still uses box-score defense proxies. It does not yet have full shot-defense / rim-protection tracking in the browser layer.</p>
+          </div>
+          <div class="card">
+            <h3>FTA is now present, but still a proxy input</h3>
+            <p>FTA is available in the engine projection layer and now in the live FMVW bundle, but it still represents a pressure proxy rather than a full foul-drawing model.</p>
+          </div>
+          <div class="card">
+            <h3>Future layer</h3>
+            <p>The next advanced step is a richer defensive history layer with opponent defense data, archetype clustering, and championship DNA analysis.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
