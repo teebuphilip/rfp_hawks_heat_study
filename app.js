@@ -61,9 +61,11 @@
     turnovers: -2.0,
   };
 
-  const PROXY_WINS_WEIGHTS = {
-    offense: 0.30,
-    defense: 0.20,
+  const PROXY_WINS_CONFIG = {
+    offenseWeight: 0.20,
+    offenseCap: 1.50,
+    defensePositiveWeight: 0.16,
+    defenseNegativeWeight: 0.35,
   };
 
   const NUMBER = (value, fallback = 0) => {
@@ -89,6 +91,15 @@
     while (u === 0) u = rng();
     while (v === 0) v = rng();
     return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  function proxyWinsAdjustment(offenseProxyZ, defenseProxyZ) {
+    const offenseTerm = CLAMP(NUMBER(offenseProxyZ), -PROXY_WINS_CONFIG.offenseCap, PROXY_WINS_CONFIG.offenseCap) * PROXY_WINS_CONFIG.offenseWeight;
+    const defenseValue = NUMBER(defenseProxyZ);
+    const defenseTerm = defenseValue >= 0
+      ? defenseValue * PROXY_WINS_CONFIG.defensePositiveWeight
+      : defenseValue * PROXY_WINS_CONFIG.defenseNegativeWeight;
+    return Number((offenseTerm + defenseTerm).toFixed(3));
   }
 
   function parseCSV(text) {
@@ -911,8 +922,8 @@
       const proxyLookup = buildProxyLookup(projectionBundle.rows || currentRows);
       const leftProxy = proxyLookup.get(normalizeText(left.player_name)) || {};
       const rightProxy = proxyLookup.get(normalizeText(right.player_name)) || {};
-      const leftProxyAdjustment = Number(((leftProxy.offense_proxy_z || 0) * PROXY_WINS_WEIGHTS.offense + (leftProxy.defense_proxy_z || 0) * PROXY_WINS_WEIGHTS.defense).toFixed(3));
-      const rightProxyAdjustment = Number(((rightProxy.offense_proxy_z || 0) * PROXY_WINS_WEIGHTS.offense + (rightProxy.defense_proxy_z || 0) * PROXY_WINS_WEIGHTS.defense).toFixed(3));
+      const leftProxyAdjustment = proxyWinsAdjustment(leftProxy.offense_proxy_z || 0, leftProxy.defense_proxy_z || 0);
+      const rightProxyAdjustment = proxyWinsAdjustment(rightProxy.offense_proxy_z || 0, rightProxy.defense_proxy_z || 0);
       const leftProxyWins = Number((leftHbbWins + leftProxyAdjustment).toFixed(3));
       const rightProxyWins = Number((rightHbbWins + rightProxyAdjustment).toFixed(3));
 
