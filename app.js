@@ -734,23 +734,28 @@
   }
 
   function buildProxyLookup(rows) {
-    const prepared = (Array.isArray(rows) ? rows : []).map((row) => ({
-      player_name: String(row.player_name || row.player || row.name || "").trim(),
-      position: String(row.position || "ALL").trim().toUpperCase() || "ALL",
-      source: row.projection || row,
-      offense_raw:
-        OFFENSE_PROXY_WEIGHTS.points * numeric(row.projection || row, "points") +
-        OFFENSE_PROXY_WEIGHTS.assists * numeric(row.projection || row, "assists") +
-        OFFENSE_PROXY_WEIGHTS.tpm * numeric(row.projection || row, "three_pt_pct") +
-        OFFENSE_PROXY_WEIGHTS.fg_pct * numeric(row.projection || row, "fg_pct") +
-        OFFENSE_PROXY_WEIGHTS.ft_pct * numeric(row.projection || row, "ft_pct") +
-        OFFENSE_PROXY_WEIGHTS.turnovers * numeric(row.projection || row, "turnovers"),
-      defense_raw:
-        DEFENSE_PROXY_WEIGHTS.rebounds * numeric(row.projection || row, "rebounds") +
-        DEFENSE_PROXY_WEIGHTS.steals * numeric(row.projection || row, "steals") +
-        DEFENSE_PROXY_WEIGHTS.blocks * numeric(row.projection || row, "blocks") +
-        DEFENSE_PROXY_WEIGHTS.turnovers * numeric(row.projection || row, "turnovers"),
-    }));
+    const prepared = (Array.isArray(rows) ? rows : []).map((row) => {
+      const source = { ...(row.projection || {}), ...row };
+      return {
+        player_name: String(row.player_name || row.player || row.name || "").trim(),
+        position: String(row.position || "ALL").trim().toUpperCase() || "ALL",
+        source,
+        turnovers: numeric(source, "turnovers"),
+        fta: numeric(source, "fta"),
+        offense_raw:
+          OFFENSE_PROXY_WEIGHTS.points * numeric(source, "points") +
+          OFFENSE_PROXY_WEIGHTS.assists * numeric(source, "assists") +
+          OFFENSE_PROXY_WEIGHTS.tpm * numeric(source, "three_pt_pct") +
+          OFFENSE_PROXY_WEIGHTS.fg_pct * numeric(source, "fg_pct") +
+          OFFENSE_PROXY_WEIGHTS.ft_pct * numeric(source, "ft_pct") +
+          OFFENSE_PROXY_WEIGHTS.turnovers * numeric(source, "turnovers"),
+        defense_raw:
+          DEFENSE_PROXY_WEIGHTS.rebounds * numeric(source, "rebounds") +
+          DEFENSE_PROXY_WEIGHTS.steals * numeric(source, "steals") +
+          DEFENSE_PROXY_WEIGHTS.blocks * numeric(source, "blocks") +
+          DEFENSE_PROXY_WEIGHTS.turnovers * numeric(source, "turnovers"),
+      };
+    });
     const groups = groupBy(prepared, "position");
     for (const [, members] of groups.entries()) {
       const offenseMean = mean(members.map((row) => row.offense_raw));
@@ -854,7 +859,9 @@
       if (proxyCallout) {
         const leftTo = formatFloat(numeric(currentResult.left, "turnovers"), 1);
         const rightTo = formatFloat(numeric(currentResult.right, "turnovers"), 1);
-        proxyCallout.textContent = `Proxy read: ${currentResult.left.player_name} off ${formatFloat(currentResult.left.offense_proxy_z, 3)}, def ${formatFloat(currentResult.left.defense_proxy_z, 3)} | ${currentResult.right.player_name} off ${formatFloat(currentResult.right.offense_proxy_z, 3)}, def ${formatFloat(currentResult.right.defense_proxy_z, 3)}. Turnovers: ${currentResult.left.player_name} ${leftTo}, ${currentResult.right.player_name} ${rightTo}. FTA is not in the current feed.`;
+        const leftFta = formatFloat(numeric(currentResult.left, "fta"), 1);
+        const rightFta = formatFloat(numeric(currentResult.right, "fta"), 1);
+        proxyCallout.textContent = `Proxy read: ${currentResult.left.player_name} off ${formatFloat(currentResult.left.offense_proxy_z, 3)}, def ${formatFloat(currentResult.left.defense_proxy_z, 3)} | ${currentResult.right.player_name} off ${formatFloat(currentResult.right.offense_proxy_z, 3)}, def ${formatFloat(currentResult.right.defense_proxy_z, 3)}. Turnovers: ${currentResult.left.player_name} ${leftTo}, ${currentResult.right.player_name} ${rightTo}. FTA: ${currentResult.left.player_name} ${leftFta}, ${currentResult.right.player_name} ${rightFta}.`;
       }
 
       const projRows = Array.isArray(projectionBundle.rows) ? projectionBundle.rows : [];
