@@ -61,6 +61,11 @@
     turnovers: -2.0,
   };
 
+  const PROXY_WINS_WEIGHTS = {
+    offense: 0.30,
+    defense: 0.20,
+  };
+
   const NUMBER = (value, fallback = 0) => {
     const n = Number(value);
     return Number.isFinite(n) ? n : fallback;
@@ -802,6 +807,7 @@
         { key: "wins_equivalent", label: "Wins Eq", render: (row) => formatFloat(numeric(row, "wins_equivalent"), 3) },
         { key: "hbb_factor", label: "HBB", render: (row) => formatFloat(numeric(row, "hbb_factor"), 3) },
         { key: "hbb_wins", label: "HBB Wins", render: (row) => formatFloat(numeric(row, "hbb_wins"), 3) },
+        { key: "proxy_adjusted_wins", label: "Proxy Wins", render: (row) => formatFloat(numeric(row, "proxy_adjusted_wins"), 3) },
         { key: "offense_proxy_z", label: "Off Proxy", render: (row) => formatFloat(numeric(row, "offense_proxy_z"), 3) },
         { key: "defense_proxy_z", label: "Def Proxy", render: (row) => formatFloat(numeric(row, "defense_proxy_z"), 3) },
         { key: "fmv_band", label: "Band" },
@@ -822,18 +828,20 @@
         ["Right HBB", formatFloat(currentResult.right_hbb_factor, 3)],
         ["Left HBB Wins", formatFloat(currentResult.left_hbb_wins, 3)],
         ["Right HBB Wins", formatFloat(currentResult.right_hbb_wins, 3)],
+        ["Left Proxy Wins", formatFloat(currentResult.left.proxy_adjusted_wins, 3)],
+        ["Right Proxy Wins", formatFloat(currentResult.right.proxy_adjusted_wins, 3)],
         ["Left Off Proxy", formatFloat(currentResult.left.offense_proxy_z, 3)],
         ["Left Def Proxy", formatFloat(currentResult.left.defense_proxy_z, 3)],
         ["Right Off Proxy", formatFloat(currentResult.right.offense_proxy_z, 3)],
         ["Right Def Proxy", formatFloat(currentResult.right.defense_proxy_z, 3)],
       ]);
       if (compareHeadline) {
-        const gap = Number(currentResult.gap.wins_gap_hbb_bridge || 0);
+        const gap = Number(currentResult.gap.wins_gap_proxy_adjusted || 0);
         const betterWorse = gap >= 0 ? "better than" : "worse than";
-        compareHeadline.textContent = `Under the current FMVW bridge and HBB adjustment, ${currentResult.left.player_name} is ${Math.abs(gap).toFixed(3)} wins ${betterWorse} ${currentResult.right.player_name}.`;
+        compareHeadline.textContent = `Under the current FMVW bridge, HBB adjustment, and proxy weighting, ${currentResult.left.player_name} is ${Math.abs(gap).toFixed(3)} proxy-adjusted wins ${betterWorse} ${currentResult.right.player_name}.`;
       }
       if (proxyCallout) {
-        proxyCallout.textContent = `Proxy read: ${currentResult.left.player_name} off ${formatFloat(currentResult.left.offense_proxy_z, 3)}, def ${formatFloat(currentResult.left.defense_proxy_z, 3)} | ${currentResult.right.player_name} off ${formatFloat(currentResult.right.offense_proxy_z, 3)}, def ${formatFloat(currentResult.right.defense_proxy_z, 3)}`;
+        proxyCallout.textContent = `Proxy read: ${currentResult.left.player_name} off ${formatFloat(currentResult.left.offense_proxy_z, 3)}, def ${formatFloat(currentResult.left.defense_proxy_z, 3)} | ${currentResult.right.player_name} off ${formatFloat(currentResult.right.offense_proxy_z, 3)}, def ${formatFloat(currentResult.right.defense_proxy_z, 3)}. These proxy scores now feed the proxy-adjusted wins number below.`;
       }
 
       const projRows = Array.isArray(projectionBundle.rows) ? projectionBundle.rows : [];
@@ -903,22 +911,31 @@
       const proxyLookup = buildProxyLookup(projectionBundle.rows || currentRows);
       const leftProxy = proxyLookup.get(normalizeText(left.player_name)) || {};
       const rightProxy = proxyLookup.get(normalizeText(right.player_name)) || {};
+      const leftProxyAdjustment = Number(((leftProxy.offense_proxy_z || 0) * PROXY_WINS_WEIGHTS.offense + (leftProxy.defense_proxy_z || 0) * PROXY_WINS_WEIGHTS.defense).toFixed(3));
+      const rightProxyAdjustment = Number(((rightProxy.offense_proxy_z || 0) * PROXY_WINS_WEIGHTS.offense + (rightProxy.defense_proxy_z || 0) * PROXY_WINS_WEIGHTS.defense).toFixed(3));
+      const leftProxyWins = Number((leftHbbWins + leftProxyAdjustment).toFixed(3));
+      const rightProxyWins = Number((rightHbbWins + rightProxyAdjustment).toFixed(3));
 
       currentResult = {
-        left: { ...left, ...leftProxy },
-        right: { ...right, ...rightProxy },
+        left: { ...left, ...leftProxy, proxy_adjusted_wins: leftProxyWins },
+        right: { ...right, ...rightProxy, proxy_adjusted_wins: rightProxyWins },
         left_hbb_factor: leftHbbFactor,
         right_hbb_factor: rightHbbFactor,
         left_hbb_wins: leftHbbWins,
         right_hbb_wins: rightHbbWins,
+        left_proxy_adjustment: leftProxyAdjustment,
+        right_proxy_adjustment: rightProxyAdjustment,
+        left_proxy_wins: leftProxyWins,
+        right_proxy_wins: rightProxyWins,
         gap: {
           salary_gap: Number((left.sim_median_salary - right.sim_median_salary).toFixed(2)),
           wins_gap_fmv_bridge: Number((left.wins_equivalent - right.wins_equivalent).toFixed(3)),
           wins_gap_hbb_bridge: Number((leftHbbWins - rightHbbWins).toFixed(3)),
+          wins_gap_proxy_adjusted: Number((leftProxyWins - rightProxyWins).toFixed(3)),
         },
         rows: [
-          { slot: "A", ...left, ...leftProxy, hbb_factor: leftHbbFactor, hbb_wins: leftHbbWins },
-          { slot: "B", ...right, ...rightProxy, hbb_factor: rightHbbFactor, hbb_wins: rightHbbWins },
+          { slot: "A", ...left, ...leftProxy, hbb_factor: leftHbbFactor, hbb_wins: leftHbbWins, proxy_adjusted_wins: leftProxyWins },
+          { slot: "B", ...right, ...rightProxy, hbb_factor: rightHbbFactor, hbb_wins: rightHbbWins, proxy_adjusted_wins: rightProxyWins },
         ],
       };
       status.textContent = "Comparison ready.";
