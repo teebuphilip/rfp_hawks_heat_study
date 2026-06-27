@@ -64,8 +64,8 @@
   const PROXY_WINS_CONFIG = {
     offenseWeight: 0.18,
     offenseCap: 1.35,
-    defensePositiveWeight: 0.24,
-    defenseNegativeWeight: 0.50,
+    defensePositiveWeight: 0.34,
+    defenseNegativeWeight: 0.69,
   };
 
   const NUMBER = (value, fallback = 0) => {
