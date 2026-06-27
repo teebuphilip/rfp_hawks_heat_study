@@ -341,9 +341,9 @@
         sim_p75_salary: Math.round(quantile(salaries, 0.75)),
         sim_salary_std: Math.round(std(salaries)),
         sim_mean_score: Number(mean(scores).toFixed(4)),
-        fmv_band: bandForSalary(quantile(salaries, 0.5)),
+        fmv_band: bandForSalary(mean(salaries)),
       };
-    }).sort((a, b) => numeric(b, "sim_median_salary") - numeric(a, "sim_median_salary"));
+    }).sort((a, b) => numeric(b, "sim_mean_salary") - numeric(a, "sim_mean_salary"));
 
     const summary = {
       sims: config.sims,
@@ -356,7 +356,7 @@
         player_name: output[0].player_name,
         team: output[0].team,
         position: output[0].position,
-        sim_median_salary: output[0].sim_median_salary,
+        sim_mean_salary: output[0].sim_mean_salary,
       } : {},
     };
 
@@ -379,17 +379,17 @@
     };
 
     const rows = rawRows.map((row) => ({ ...row }));
-    const salaryCol = rows[0] && "sim_median_salary" in rows[0] ? "sim_median_salary" : "median_salary";
+    const salaryCol = rows[0] && "sim_mean_salary" in rows[0] ? "sim_mean_salary" : "sim_median_salary";
     const lowCol = rows[0] && "sim_p25_salary" in rows[0] ? "sim_p25_salary" : "p25_salary";
     const highCol = rows[0] && "sim_p75_salary" in rows[0] ? "sim_p75_salary" : "p75_salary";
 
     const output = rows.map((row) => {
-      const medianSalary = numeric(row, salaryCol);
-      const p25Salary = numeric(row, lowCol, medianSalary);
-      const p75Salary = numeric(row, highCol, medianSalary);
+      const meanSalary = numeric(row, salaryCol);
+      const p25Salary = numeric(row, lowCol, meanSalary);
+      const p75Salary = numeric(row, highCol, meanSalary);
       return {
         ...row,
-        wins_equivalent: Number(((medianSalary - config.replacementSalary) / config.salaryPerWin).toFixed(3)),
+        wins_equivalent: Number(((meanSalary - config.replacementSalary) / config.salaryPerWin).toFixed(3)),
         wins_p25: Number(((p25Salary - config.replacementSalary) / config.salaryPerWin).toFixed(3)),
         wins_p75: Number(((p75Salary - config.replacementSalary) / config.salaryPerWin).toFixed(3)),
       };
@@ -638,7 +638,7 @@
         { key: "player_name", label: "Player" },
         { key: "team", label: "Team" },
         { key: "position", label: "Pos" },
-        { key: "sim_median_salary", label: "Median", render: (row) => formatCurrency(numeric(row, "sim_median_salary")) },
+        { key: "sim_mean_salary", label: "Average", render: (row) => formatCurrency(numeric(row, "sim_mean_salary")) },
         { key: "sim_p25_salary", label: "P25", render: (row) => formatCurrency(numeric(row, "sim_p25_salary")) },
         { key: "sim_p75_salary", label: "P75", render: (row) => formatCurrency(numeric(row, "sim_p75_salary")) },
         { key: "weighted_score", label: "Weighted Score", render: (row) => formatFloat(numeric(row, "weighted_score"), 3) },
@@ -819,7 +819,7 @@
         { key: "player_name", label: "Player" },
         { key: "team", label: "Team" },
         { key: "position", label: "Pos" },
-        { key: "sim_median_salary", label: "FMV", render: (row) => formatCurrency(numeric(row, "sim_median_salary")) },
+        { key: "sim_mean_salary", label: "FMV", render: (row) => formatCurrency(numeric(row, "sim_mean_salary")) },
         { key: "wins_equivalent", label: "Wins Eq", render: (row) => formatFloat(numeric(row, "wins_equivalent"), 3) },
         { key: "hbb_factor", label: "HBB", render: (row) => formatFloat(numeric(row, "hbb_factor"), 3) },
         { key: "hbb_wins", label: "HBB Wins", render: (row) => formatFloat(numeric(row, "hbb_wins"), 3) },
@@ -836,8 +836,8 @@
         ["HBB Gap", formatFloat(currentResult.gap.wins_gap_hbb_bridge, 3)],
       ]);
       setSummary(gapSummary, [
-        ["Left FMV", formatCurrency(numeric(currentResult.left, "sim_median_salary"))],
-        ["Right FMV", formatCurrency(numeric(currentResult.right, "sim_median_salary"))],
+        ["Left FMV", formatCurrency(numeric(currentResult.left, "sim_mean_salary"))],
+        ["Right FMV", formatCurrency(numeric(currentResult.right, "sim_mean_salary"))],
         ["Left Wins", formatFloat(currentResult.left.wins_equivalent, 3)],
         ["Right Wins", formatFloat(currentResult.right.wins_equivalent, 3)],
         ["Left HBB", formatFloat(currentResult.left_hbb_factor, 3)],
@@ -894,7 +894,7 @@
             { key: "projection.steals", label: "STL", render: (row) => formatFloat(row.projection?.steals, 1) },
             { key: "projection.blocks", label: "BLK", render: (row) => formatFloat(row.projection?.blocks, 1) },
             { key: "projection.fantasy_points", label: "FP", render: (row) => formatFloat(row.projection?.fantasy_points, 1) },
-            { key: "sim_median_salary", label: "FMV", render: (row) => formatCurrency(numeric(row, "sim_median_salary")) },
+            { key: "sim_mean_salary", label: "FMV", render: (row) => formatCurrency(numeric(row, "sim_mean_salary")) },
           ],
           2
         );
@@ -948,7 +948,7 @@
         left_proxy_wins: leftProxyWins,
         right_proxy_wins: rightProxyWins,
         gap: {
-          salary_gap: Number((left.sim_median_salary - right.sim_median_salary).toFixed(2)),
+          salary_gap: Number((left.sim_mean_salary - right.sim_mean_salary).toFixed(2)),
           wins_gap_fmv_bridge: Number((left.wins_equivalent - right.wins_equivalent).toFixed(3)),
           wins_gap_hbb_bridge: Number((leftHbbWins - rightHbbWins).toFixed(3)),
           wins_gap_proxy_adjusted: Number((leftProxyWins - rightProxyWins).toFixed(3)),
