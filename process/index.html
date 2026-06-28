@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Fair Market Value Methodology - Process</title>
+    <title>DBB2 Basketball Ops Process</title>
     <link rel="stylesheet" href="../style.css" />
   </head>
   <body data-app="process">
@@ -11,14 +11,12 @@
       <div class="wrap">
         <div class="eyebrow">DBB2 Basketball Ops</div>
         <h1>Process</h1>
-        <p>This page explains the stack in order: raw DBB2 projections, teammate-neutral normalization, FMV pricing, and FMVW bridging.</p>
+        <p>This page explains the stack in order: raw DBB2 projections, teammate-neutral normalization, FMV pricing, FMVW bridging, and team-vs-team comparison.</p>
         <div class="subline">
           <span class="chip">Raw projections</span>
           <span class="chip">Neutralize context</span>
           <span class="chip">Price market value</span>
           <span class="chip">Bridge to wins</span>
-          <a class="chip" href="../methodology/">Methodology</a>
-          <a class="chip" href="../">Back to Hub</a>
         </div>
       </div>
     </header>
@@ -67,61 +65,15 @@
           </div>
           <div class="card">
             <h3>4. FMVW bridge</h3>
-            <p>Convert team-level FMV into a wins-equivalent number by comparing roster value to historical team wins, with replacement-level and cap context baked in. This is a bridge from market value to expected season wins, not a claim that FMV itself is wins.</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="section card">
-        <h2>What The Win Bridge Means</h2>
-        <div class="list">
-          <div class="card">
-            <h3>Definition</h3>
-            <p>The win bridge turns a roster's market value into an expected win total by mapping team FMV totals to actual season wins. It starts from teammate-neutral player value, rolls that into a team-level market value, and then uses historical team outcomes to place that value on a wins scale. In plain English: if a better roster clears for more in the market, it should also project to win more games once the roster is scaled to an NBA season.</p>
+            <p>Aggregate value at the roster level and calibrate that total against wins.</p>
           </div>
           <div class="card">
-            <h3>How it is used</h3>
-            <p>Use it for team comparisons, roster construction, and player-to-roster context. It is the step that lets the user ask, "How much does this player or roster shape move wins?" without pretending the market-value layer is already a win model. The bridge is intentionally built to be readable at the front-office level: strong rosters, weak rosters, replacement-level slots, and the effect of cap pressure are all part of the translation.</p>
+            <h3>5. Team vs team</h3>
+            <p>Apply HBB to roster aggregation for comparisons like Hawks vs Knicks.</p>
           </div>
           <div class="card">
-            <h3>What it is not</h3>
-            <p>It is not a direct box-score-to-wins formula, not a fantasy scoring shortcut, and not a replacement for teammate-neutral player valuation. It is the translation layer that comes after FMV.</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="section card">
-        <h2>Why This Is Different</h2>
-        <div class="list">
-          <div class="card">
-            <h3>Compared with VORP / Win Shares</h3>
-            <p>Those approaches are mainly trying to attribute team wins back to players. DBB2 starts one layer earlier: it neutralizes teammate context first, then prices the player in a market. The output is not just a win-share estimate. It is market value on top of a cleaner player signal.</p>
-          </div>
-          <div class="card">
-            <h3>Compared with BPM / RAPTOR / LEBRON / EPM-style models</h3>
-            <p>Those systems generally aim to estimate player impact directly from a mix of box score and plus-minus style inputs. DBB2 is narrower at the start: it keeps the player layer teammate-neutral, then turns that into fair market value. That makes it easier to talk about value, overpay, and roster construction without confusing the player signal with the team signal.</p>
-          </div>
-          <div class="card">
-            <h3>Compared with a fantasy auction model</h3>
-            <p>This is not built to maximize category stats or win a fantasy draft. It is built to price an NBA player inside a cap-constrained market, then use that valuation as the basis for a wins bridge or team comparison when needed.</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="section card">
-        <h2>How To Read It</h2>
-        <div class="list">
-          <div class="card">
-            <h3>Player-first</h3>
-            <p>If you are asking who is better between two players, look at the FMVW View first. That is where the teammate-neutral valuation is the point, not the side effect.</p>
-          </div>
-          <div class="card">
-            <h3>Team context second</h3>
-            <p>If you are asking how a roster shape behaves over a season, use the team layers and the league table. That is where core concentration, depth, interaction, and pressure begin to matter.</p>
-          </div>
-          <div class="card">
-            <h3>Wins bridge is derived</h3>
-            <p>The wins-equivalent number is useful, but it is downstream of FMV. It is there to help the conversation, not replace the player value signal.</p>
+            <h3>6. Totals and proxy read</h3>
+            <p>The live comparison view now shows FMV, wins-equivalent, HBB factor, HBB wins, proxy delta, proxy-adjusted wins, and the proxy readout side by side so the arithmetic stays visible.</p>
           </div>
         </div>
       </section>

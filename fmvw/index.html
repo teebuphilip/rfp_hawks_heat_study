@@ -3,115 +3,74 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Fair Market Value Methodology - FMVW View</title>
+    <title>DBB2 Basketball Ops FMVW</title>
     <link rel="stylesheet" href="../style.css" />
   </head>
   <body data-app="fmvw">
     <header>
       <div class="wrap">
         <div class="eyebrow">DBB2 Basketball Ops</div>
-        <h1>FMVW View</h1>
-        <p>Pick two players from the fixed 25-26 top-200 pool and compare their teammate-neutral market value, wins-equivalent output, and proxy-adjusted wins.</p>
+        <h1>FMVW</h1>
+        <p>Upload FMV output and bridge market value into a wins-equivalent estimate using a replacement baseline and a wins calibration scale.</p>
         <div class="subline">
-          <span class="chip">Player A</span>
-          <span class="chip">Player B</span>
-          <span class="chip">FMV</span>
-          <span class="chip">Wins bridge</span>
-          <a class="chip" href="../methodology/">Methodology</a>
-          <a class="chip" href="../">Back to Hub</a>
+          <span class="chip">Market value in</span>
+          <span class="chip">Wins-equivalent out</span>
+          <span class="chip">Configurable bridge</span>
+          <span class="chip">No backend</span>
         </div>
       </div>
     </header>
 
-    <main data-app-root data-sample="../data/fmvw_top200_2526.csv" data-projection="../data/fmvw_projection_26_27.json" data-league="../data/league_table.json">
+    <main data-app-root data-sample="../data/mini_fmv_player_values.csv">
       <div class="split">
         <section class="card">
-          <h2>Compare Two Players</h2>
+          <h2>Controls</h2>
           <div class="controls">
             <div class="field span-6">
-              <label>Player A</label>
-              <select data-player-a></select>
+              <label>Load FMV file</label>
+              <input data-file-input type="file" accept=".csv,.json" />
             </div>
-            <div class="field span-6">
-              <label>Player B</label>
-              <select data-player-b></select>
+            <div class="field span-3">
+              <label>Replacement salary</label>
+              <input data-replacement-salary type="number" step="100000" value="2000000" />
             </div>
-            <div class="field span-6">
-              <label>Actions</label>
-              <div class="toolbar">
-                <button class="primary" data-compare>Compare Players</button>
-              </div>
+            <div class="field span-3">
+              <label>$ per win</label>
+              <input data-salary-per-win type="number" step="100000" value="4000000" />
             </div>
           </div>
-          <p class="small muted" data-status style="margin-top: 12px;">Loading fixed 25-26 top-200 pool.</p>
+          <div class="toolbar" style="margin-top: 14px;">
+            <button class="ghost" data-load-demo>Load Demo FMV</button>
+            <button class="primary" data-run>Run FMVW</button>
+            <button data-download-csv disabled>Download CSV</button>
+            <button data-download-json disabled>Download JSON</button>
+          </div>
+          <p class="small muted" data-status style="margin-top: 12px;">Waiting for FMV input.</p>
         </section>
+
+        <aside class="card">
+          <h2>Summary</h2>
+          <div data-summary class="list"></div>
+          <p class="small muted" style="margin-top: 14px;">This bridge is the first cut of the team-value-to-wins layer. It stays separate from FMV so the market price and the wins translation do not blur together.</p>
+        </aside>
       </div>
 
       <section class="section card">
         <div class="table-actions">
           <div>
-            <h2 style="margin-bottom: 4px;">Player Comparison</h2>
-            <p class="small muted">FMV, wins-equivalent, HBB factor, proxy-adjusted wins, and proxy read for the selected pair.</p>
-            <div data-compare-headline class="notice" style="margin-top: 12px; font-weight: 700; color: var(--text);">Select two players to see the proxy-adjusted wins gap.</div>
-            <p class="small muted" data-proxy-callout style="margin-top: 10px;">Proxy read will appear here.</p>
+            <h2 style="margin-bottom: 4px;">Bridge Output</h2>
+            <p class="small muted">Sorted by FMV salary-equivalent.</p>
+            <p class="small muted" data-proxy-callout style="margin-top: 8px;">Offense / defense proxy read will appear here.</p>
+          </div>
+          <div class="field" style="min-width: 180px;">
+            <label>Rows shown</label>
+            <input data-view-limit type="number" min="10" step="5" value="50" />
           </div>
         </div>
         <div class="table-wrap">
           <div data-table></div>
         </div>
       </section>
-
-      <section class="section card">
-        <h2>Summary</h2>
-        <div data-summary class="list"></div>
-        <div data-gap-summary class="list" style="margin-top: 14px;"></div>
-        <div style="margin-top: 18px;">
-          <h3 style="margin-bottom: 8px;">DBB2 Teammate-Neutral Projection 26-27</h3>
-          <div data-projection-summary class="notice">Select two players to load the matching 26-27 teammate-neutral projection lines here.</div>
-          <div class="table-wrap" style="margin-top: 12px;">
-            <div data-projection-table></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section card">
-        <h2>Definitions</h2>
-        <div class="list">
-          <div class="metric">
-            <span class="muted">Teammate-neutral evaluation</span>
-            <strong>Player production adjusted to a common roster context.</strong>
-          </div>
-          <div class="metric">
-            <span class="muted">FMV</span>
-            <strong>The cap-constrained market price a player clears for.</strong>
-          </div>
-          <div class="metric">
-            <span class="muted">Wins number</span>
-            <strong>We start with FMV salary, convert dollars to wins with the salary-per-win bridge, apply HBB for team context, then add an offense-first proxy adjustment from the proxy layer. The current proxy layer uses box-score signals, including free-throw attempts as a pressure input.</strong>
-          </div>
-          <div class="metric">
-            <span class="muted">FMVW</span>
-            <strong>The wins-equivalent translation of that market value before proxy adjustment.</strong>
-          </div>
-          <div class="metric">
-            <span class="muted">Proxy-adjusted wins</span>
-            <strong>The FMVW win total after the proxy layer is applied. Offense is compressed with a soft cap, and weak defense subtracts more than strong defense adds. The exact weights live in code and can be tuned later.</strong>
-          </div>
-          <div class="metric">
-            <span class="muted">Turnovers / FTA</span>
-            <strong>Turnovers and FTA are shown directly on the comparison page. FTA is part of the current offense proxy as a pressure signal.</strong>
-          </div>
-          <div class="metric">
-            <span class="muted">HBB</span>
-            <strong>A team-context multiplier. It measures how much the surrounding roster, balance, pressure, and support change the wins-equivalent value of the player after FMV is set. HBB is not a player trait; it is a team-level adjustment applied on top of player value.</strong>
-          </div>
-          <div class="metric">
-            <span class="muted">Band</span>
-            <strong>A salary tier label derived from FMV, used to sort players into ranges like minimum, rotation, starter, core, and star.</strong>
-          </div>
-        </div>
-      </section>
-
     </main>
 
     <script src="../app.js"></script>

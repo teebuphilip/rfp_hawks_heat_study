@@ -1,9 +1,8 @@
 (() => {
   const DEFAULTS = {
     fmvFeed: "./data/mini_fmv_player_values.csv",
-    fmvwFeed: "./data/fmvw_top200_2526.csv",
+    fmvwFeed: "./data/mini_fmv_player_values.csv",
     teamComparisonFeed: "./data/basketball_ops_comparison_summary.json",
-    leagueTableFeed: "./data/league_table.json",
     salaryCap: 154647000,
     teamCount: 30,
     rosterSlots: 12,
@@ -37,14 +36,13 @@
     steals: 3.0,
     blocks: 3.0,
     threes: 1.5,
-    turnovers: -1.5,
+    turnovers: -1.75,
     fg_pct: 1.0,
     ft_pct: 0.75,
     usage: 0.5,
     games: 1.5,
     minutes: 0.75,
   };
-
   const OFFENSE_PROXY_WEIGHTS = {
     points: 2.0,
     assists: 1.5,
@@ -53,19 +51,11 @@
     ft_pct: 0.5,
     turnovers: -1.0,
   };
-
   const DEFENSE_PROXY_WEIGHTS = {
     rebounds: 0.1,
     steals: 3.0,
     blocks: 5.5,
     turnovers: -2.0,
-  };
-
-  const PROXY_WINS_CONFIG = {
-    offenseWeight: 0.18,
-    offenseCap: 1.35,
-    defensePositiveWeight: 0.34,
-    defenseNegativeWeight: 0.69,
   };
 
   const NUMBER = (value, fallback = 0) => {
@@ -91,15 +81,6 @@
     while (u === 0) u = rng();
     while (v === 0) v = rng();
     return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-  }
-
-  function proxyWinsAdjustment(offenseProxyZ, defenseProxyZ) {
-    const offenseTerm = CLAMP(NUMBER(offenseProxyZ), -PROXY_WINS_CONFIG.offenseCap, PROXY_WINS_CONFIG.offenseCap) * PROXY_WINS_CONFIG.offenseWeight;
-    const defenseValue = NUMBER(defenseProxyZ);
-    const defenseTerm = defenseValue >= 0
-      ? defenseValue * PROXY_WINS_CONFIG.defensePositiveWeight
-      : defenseValue * PROXY_WINS_CONFIG.defenseNegativeWeight;
-    return Number((offenseTerm + defenseTerm).toFixed(3));
   }
 
   function parseCSV(text) {
@@ -163,15 +144,6 @@
       return `"${text.replace(/"/g, '""')}"`;
     }
     return text;
-  }
-
-  function escapeHTML(value) {
-    return String(value === null || value === undefined ? "" : value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
   }
 
   function toCSV(rows, columns) {
@@ -384,12 +356,12 @@
     const highCol = rows[0] && "sim_p75_salary" in rows[0] ? "sim_p75_salary" : "p75_salary";
 
     const output = rows.map((row) => {
-      const meanSalary = numeric(row, salaryCol);
-      const p25Salary = numeric(row, lowCol, meanSalary);
-      const p75Salary = numeric(row, highCol, meanSalary);
+      const medianSalary = numeric(row, salaryCol);
+      const p25Salary = numeric(row, lowCol, medianSalary);
+      const p75Salary = numeric(row, highCol, medianSalary);
       return {
         ...row,
-        wins_equivalent: Number(((meanSalary - config.replacementSalary) / config.salaryPerWin).toFixed(3)),
+        wins_equivalent: Number(((medianSalary - config.replacementSalary) / config.salaryPerWin).toFixed(3)),
         wins_p25: Number(((p25Salary - config.replacementSalary) / config.salaryPerWin).toFixed(3)),
         wins_p75: Number(((p75Salary - config.replacementSalary) / config.salaryPerWin).toFixed(3)),
       };
@@ -415,6 +387,57 @@
     };
 
     return { rows: output, summary };
+  }
+
+  function buildProxyReadout(rawRows) {
+    if (!Array.isArray(rawRows) || !rawRows.length) return "Offense / defense proxy read will appear here.";
+    const rows = rawRows.map((row) => ({ ...row }));
+    const prepared = rows.map((row) => ({
+      player_name: String(row.player_name || row.player || row.name || "").trim(),
+      position: String(row.position || "ALL").trim().toUpperCase() || "ALL",
+      offense_raw:
+        OFFENSE_PROXY_WEIGHTS.points * numeric(row, "PTS") +
+        OFFENSE_PROXY_WEIGHTS.assists * numeric(row, "AST") +
+        OFFENSE_PROXY_WEIGHTS.tpm * numeric(row, "THREE_PM") +
+        OFFENSE_PROXY_WEIGHTS.fg_pct * numeric(row, "FG_PCT") +
+        OFFENSE_PROXY_WEIGHTS.ft_pct * numeric(row, "FT_PCT") +
+        OFFENSE_PROXY_WEIGHTS.turnovers * numeric(row, "TO"),
+      defense_raw:
+        DEFENSE_PROXY_WEIGHTS.rebounds * numeric(row, "REB") +
+        DEFENSE_PROXY_WEIGHTS.steals * numeric(row, "STL") +
+        DEFENSE_PROXY_WEIGHTS.blocks * numeric(row, "BLK") +
+        DEFENSE_PROXY_WEIGHTS.turnovers * numeric(row, "TO"),
+    }));
+
+    const offenseGroups = groupBy(prepared, "position");
+    const defenseGroups = groupBy(prepared, "position");
+    for (const [position, members] of offenseGroups.entries()) {
+      const offenseMean = mean(members.map((row) => row.offense_raw));
+      const offenseStd = std(members.map((row) => row.offense_raw));
+      const defenseMean = mean(defenseGroups.get(position).map((row) => row.defense_raw));
+      const defenseStd = std(defenseGroups.get(position).map((row) => row.defense_raw));
+      members.forEach((row) => {
+        row.offense_z = zScore(row.offense_raw, offenseMean, offenseStd);
+        row.defense_z = zScore(row.defense_raw, defenseMean, defenseStd);
+      });
+    }
+
+    const findPlayer = (name) => prepared.find((row) => row.player_name === name);
+    const pairs = [
+      ["Nikola Jokić", "Rudy Gobert"],
+      ["Luka Dončić", "Shai Gilgeous-Alexander"],
+    ];
+    const parts = [];
+    for (const [leftName, rightName] of pairs) {
+      const left = findPlayer(leftName);
+      const right = findPlayer(rightName);
+      if (!left || !right) continue;
+      parts.push(
+        `${leftName}: off ${formatFloat(left.offense_z, 3)}, def ${formatFloat(left.defense_z, 3)}; ` +
+        `${rightName}: off ${formatFloat(right.offense_z, 3)}, def ${formatFloat(right.defense_z, 3)}`
+      );
+    }
+    return parts.length ? `Proxy read: ${parts.join(" | ")}` : "Offense / defense proxy read will appear here.";
   }
 
   function readFileAsText(file) {
@@ -469,14 +492,6 @@
     return parseCSV(text);
   }
 
-  async function fetchJson(path) {
-    const response = await fetch(path, { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(`Failed to load ${path}`);
-    }
-    return JSON.parse(await response.text());
-  }
-
   async function fetchComparisonBundle(path) {
     const response = await fetch(path, { cache: "no-store" });
     if (!response.ok) {
@@ -527,6 +542,17 @@
         right_base_wins: pair.right_base_wins,
         left_hbb_wins: pair.left_hbb_wins,
         right_hbb_wins: pair.right_hbb_wins,
+        left_hbb_delta: pair.left_hbb_delta,
+        right_hbb_delta: pair.right_hbb_delta,
+        left_turnovers: pair.left_turnovers,
+        right_turnovers: pair.right_turnovers,
+        left_fta: pair.left_fta,
+        right_fta: pair.right_fta,
+        left_proxy_delta: pair.left_proxy_delta,
+        right_proxy_delta: pair.right_proxy_delta,
+        left_proxy_wins: pair.left_proxy_wins,
+        right_proxy_wins: pair.right_proxy_wins,
+        proxy_wins_gap: pair.proxy_wins_gap,
         wins_gap_fmv_bridge: pair.wins_gap_fmv_bridge,
         wins_gap_hbb_bridge: pair.wins_gap_hbb_bridge,
       });
@@ -567,6 +593,17 @@
       "right_base_wins",
       "left_hbb_wins",
       "right_hbb_wins",
+      "left_hbb_delta",
+      "right_hbb_delta",
+      "left_turnovers",
+      "right_turnovers",
+      "left_fta",
+      "right_fta",
+      "left_proxy_delta",
+      "right_proxy_delta",
+      "left_proxy_wins",
+      "right_proxy_wins",
+      "proxy_wins_gap",
       "wins_gap_fmv_bridge",
       "wins_gap_hbb_bridge",
       "team",
@@ -628,6 +665,7 @@
     const downloadCsvBtn = root.querySelector("[data-download-csv]");
     const downloadJsonBtn = root.querySelector("[data-download-json]");
     const viewLimit = root.querySelector("[data-view-limit]");
+    const proxyCallout = root.querySelector("[data-proxy-callout]");
 
     let currentRows = [];
     let currentResult = null;
@@ -707,281 +745,90 @@
     await loadDemo();
   }
 
-  function normalizeText(value) {
-    return String(value || "")
-      .normalize("NFKD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .trim();
-  }
-
-  function buildHbbLookup(bundle) {
-    const lookup = {};
-    for (const row of Array.isArray(bundle?.rows) ? bundle.rows : []) {
-      const team = String(row.team || "").trim().toUpperCase();
-      if (team) lookup[team] = NUMBER(row.team_hbb_factor, 1.0);
-    }
-    return lookup;
-  }
-
-  function proxySignal(score) {
-    if (!Number.isFinite(score)) return "INSUFFICIENT_BASELINE";
-    if (score >= 1.0) return "SIGNIFICANTLY_ABOVE_BASELINE";
-    if (score >= 0.35) return "ABOVE_BASELINE";
-    if (score <= -1.0) return "SIGNIFICANTLY_BELOW_BASELINE";
-    if (score <= -0.35) return "BELOW_BASELINE";
-    return "ON_BASELINE";
-  }
-
-  function buildProxyLookup(rows) {
-    const prepared = (Array.isArray(rows) ? rows : []).map((row) => {
-      const source = { ...(row.projection || {}), ...row };
-      return {
-        player_name: String(row.player_name || row.player || row.name || "").trim(),
-        position: String(row.position || "ALL").trim().toUpperCase() || "ALL",
-        source,
-        turnovers: numeric(source, "turnovers"),
-        fta: numeric(source, "fta"),
-        offense_raw:
-          OFFENSE_PROXY_WEIGHTS.points * numeric(source, "points") +
-          OFFENSE_PROXY_WEIGHTS.assists * numeric(source, "assists") +
-          OFFENSE_PROXY_WEIGHTS.tpm * numeric(source, "three_pt_pct") +
-          OFFENSE_PROXY_WEIGHTS.fg_pct * numeric(source, "fg_pct") +
-          OFFENSE_PROXY_WEIGHTS.ft_pct * numeric(source, "ft_pct") +
-          OFFENSE_PROXY_WEIGHTS.turnovers * numeric(source, "turnovers"),
-        defense_raw:
-          DEFENSE_PROXY_WEIGHTS.rebounds * numeric(source, "rebounds") +
-          DEFENSE_PROXY_WEIGHTS.steals * numeric(source, "steals") +
-          DEFENSE_PROXY_WEIGHTS.blocks * numeric(source, "blocks") +
-          DEFENSE_PROXY_WEIGHTS.turnovers * numeric(source, "turnovers"),
-      };
-    });
-    const groups = groupBy(prepared, "position");
-    for (const [, members] of groups.entries()) {
-      const offenseMean = mean(members.map((row) => row.offense_raw));
-      const offenseStd = std(members.map((row) => row.offense_raw));
-      const defenseMean = mean(members.map((row) => row.defense_raw));
-      const defenseStd = std(members.map((row) => row.defense_raw));
-      members.forEach((row) => {
-        row.offense_proxy_z = zScore(row.offense_raw, offenseMean, offenseStd);
-        row.defense_proxy_z = zScore(row.defense_raw, defenseMean, defenseStd);
-        row.offense_proxy_signal = proxySignal(row.offense_proxy_z);
-        row.defense_proxy_signal = proxySignal(row.defense_proxy_z);
-      });
-    }
-    return new Map(prepared.map((row) => [normalizeText(row.player_name), row]));
-  }
-
   async function mountFMVW(root) {
-    const samplePath = root.dataset.sample || DEFAULTS.fmvFeed;
-    const projectionPath = root.dataset.projection || DEFAULTS.fmvwProjectionFeed;
-    const leaguePath = root.dataset.league || DEFAULTS.leagueTableFeed;
+    const samplePath = root.dataset.sample || DEFAULTS.fmvwFeed;
     const status = root.querySelector("[data-status]");
     const summary = root.querySelector("[data-summary]");
-    const gapSummary = root.querySelector("[data-gap-summary]");
-    const projectionSummary = root.querySelector("[data-projection-summary]");
-    const projectionTable = root.querySelector("[data-projection-table]");
     const table = root.querySelector("[data-table]");
-    const compareHeadline = root.querySelector("[data-compare-headline]");
-    const proxyCallout = root.querySelector("[data-proxy-callout]");
-    const compareBtn = root.querySelector("[data-compare]");
-    const playerAInput = root.querySelector("[data-player-a]");
-    const playerBInput = root.querySelector("[data-player-b]");
+    const fileInput = root.querySelector("[data-file-input]");
+    const loadDemoBtn = root.querySelector("[data-load-demo]");
+    const runBtn = root.querySelector("[data-run]");
+    const downloadCsvBtn = root.querySelector("[data-download-csv]");
+    const downloadJsonBtn = root.querySelector("[data-download-json]");
+    const viewLimit = root.querySelector("[data-view-limit]");
 
     let currentRows = [];
-    let leagueBundle = {};
-    let projectionBundle = {};
     let currentResult = null;
-
-    const populatePlayerSelects = (rows) => {
-      const sorted = [...rows].sort((a, b) => String(a.player_name || "").localeCompare(String(b.player_name || "")));
-      const defaultA = sorted.find((row) => normalizeText(row.player_name) === normalizeText("Nikola Jokić"))?.player_name || sorted[0]?.player_name || "";
-      const defaultB = sorted.find((row) => normalizeText(row.player_name) === normalizeText("Rudy Gobert"))?.player_name || sorted[1]?.player_name || sorted[0]?.player_name || "";
-      for (const select of [playerAInput, playerBInput]) {
-        if (!select) continue;
-        const previous = String(select.value || "");
-        select.innerHTML = [
-          `<option value="">Select a player</option>`,
-          ...sorted.map((row) => `<option value="${escapeHTML(row.player_name)}">${escapeHTML(row.player_name)}</option>`),
-        ].join("");
-        if (previous && sorted.some((row) => row.player_name === previous)) {
-          select.value = previous;
-        }
-      }
-      if (playerAInput && !playerAInput.value) playerAInput.value = defaultA;
-      if (playerBInput && !playerBInput.value) playerBInput.value = defaultB;
-    };
 
     const render = () => {
       if (!currentResult) return;
       const columns = [
-        { key: "slot", label: "Slot" },
         { key: "player_name", label: "Player" },
         { key: "team", label: "Team" },
-        { key: "position", label: "Pos" },
-        { key: "sim_mean_salary", label: "FMV", render: (row) => formatCurrency(numeric(row, "sim_mean_salary")) },
+        { key: "sim_mean_salary", label: "Average FMV", render: (row) => formatCurrency(numeric(row, "sim_mean_salary")) },
         { key: "wins_equivalent", label: "Wins Eq", render: (row) => formatFloat(numeric(row, "wins_equivalent"), 3) },
-        { key: "hbb_factor", label: "HBB", render: (row) => formatFloat(numeric(row, "hbb_factor"), 3) },
-        { key: "hbb_wins", label: "HBB Wins", render: (row) => formatFloat(numeric(row, "hbb_wins"), 3) },
-        { key: "proxy_adjusted_wins", label: "Proxy Wins", render: (row) => formatFloat(numeric(row, "proxy_adjusted_wins"), 3) },
-        { key: "offense_proxy_z", label: "Off Proxy", render: (row) => formatFloat(numeric(row, "offense_proxy_z"), 3) },
-        { key: "defense_proxy_z", label: "Def Proxy", render: (row) => formatFloat(numeric(row, "defense_proxy_z"), 3) },
-        { key: "fmv_band", label: "Band" },
+        { key: "wins_p25", label: "Wins P25", render: (row) => formatFloat(numeric(row, "wins_p25"), 3) },
+        { key: "wins_p75", label: "Wins P75", render: (row) => formatFloat(numeric(row, "wins_p75"), 3) },
       ];
-      renderTable(table, currentResult.rows, columns, 2);
-      setSummary(summary, [
-        ["Left", `${currentResult.left.player_name} (${currentResult.left.team})`],
-        ["Right", `${currentResult.right.player_name} (${currentResult.right.team})`],
-        ["Base Gap", formatFloat(currentResult.gap.wins_gap_fmv_bridge, 3)],
-        ["HBB Gap", formatFloat(currentResult.gap.wins_gap_hbb_bridge, 3)],
-      ]);
-      setSummary(gapSummary, [
-        ["Left FMV", formatCurrency(numeric(currentResult.left, "sim_mean_salary"))],
-        ["Right FMV", formatCurrency(numeric(currentResult.right, "sim_mean_salary"))],
-        ["Left Wins", formatFloat(currentResult.left.wins_equivalent, 3)],
-        ["Right Wins", formatFloat(currentResult.right.wins_equivalent, 3)],
-        ["Left HBB", formatFloat(currentResult.left_hbb_factor, 3)],
-        ["Right HBB", formatFloat(currentResult.right_hbb_factor, 3)],
-        ["Left HBB Wins", formatFloat(currentResult.left_hbb_wins, 3)],
-        ["Right HBB Wins", formatFloat(currentResult.right_hbb_wins, 3)],
-        ["Left Proxy Wins", formatFloat(currentResult.left.proxy_adjusted_wins, 3)],
-        ["Right Proxy Wins", formatFloat(currentResult.right.proxy_adjusted_wins, 3)],
-        ["Left Off Proxy", formatFloat(currentResult.left.offense_proxy_z, 3)],
-        ["Left Def Proxy", formatFloat(currentResult.left.defense_proxy_z, 3)],
-        ["Right Off Proxy", formatFloat(currentResult.right.offense_proxy_z, 3)],
-        ["Right Def Proxy", formatFloat(currentResult.right.defense_proxy_z, 3)],
-      ]);
-      if (compareHeadline) {
-        const gap = Number(currentResult.gap.wins_gap_proxy_adjusted || 0);
-        const betterWorse = gap >= 0 ? "better than" : "worse than";
-        compareHeadline.textContent = `Under the current FMVW bridge, HBB adjustment, and proxy weighting, ${currentResult.left.player_name} is ${Math.abs(gap).toFixed(3)} proxy-adjusted wins ${betterWorse} ${currentResult.right.player_name}.`;
-      }
+      renderTable(table, currentResult.rows, columns, NUMBER(viewLimit.value, 50));
       if (proxyCallout) {
-        const leftTo = formatFloat(numeric(currentResult.left, "turnovers"), 1);
-        const rightTo = formatFloat(numeric(currentResult.right, "turnovers"), 1);
-        const leftFta = formatFloat(numeric(currentResult.left, "fta"), 1);
-        const rightFta = formatFloat(numeric(currentResult.right, "fta"), 1);
-        proxyCallout.textContent = `Proxy read: ${currentResult.left.player_name} off ${formatFloat(currentResult.left.offense_proxy_z, 3)}, def ${formatFloat(currentResult.left.defense_proxy_z, 3)} | ${currentResult.right.player_name} off ${formatFloat(currentResult.right.offense_proxy_z, 3)}, def ${formatFloat(currentResult.right.defense_proxy_z, 3)}. Turnovers: ${currentResult.left.player_name} ${leftTo}, ${currentResult.right.player_name} ${rightTo}. FTA: ${currentResult.left.player_name} ${leftFta}, ${currentResult.right.player_name} ${rightFta}.`;
+        proxyCallout.textContent = buildProxyReadout(currentRows);
       }
-
-      const projRows = Array.isArray(projectionBundle.rows) ? projectionBundle.rows : [];
-      const selectedProjectionRows = [
-        currentResult.left,
-        currentResult.right,
-      ].map((side) => {
-        const projectionRow = projRows.find((row) => normalizeText(row.player_name) === normalizeText(side.player_name));
-        return projectionRow ? { side: side.slot, ...projectionRow } : null;
-      }).filter(Boolean);
-      if (projectionSummary) {
-        const leftProj = selectedProjectionRows.find((row) => row.side === "A");
-        const rightProj = selectedProjectionRows.find((row) => row.side === "B");
-        projectionSummary.textContent = leftProj && rightProj
-          ? `${projectionBundle.title || "DBB2 Teammate-Neutral Projection 26-27"} loaded for the selected players.`
-          : "Projection feed loaded.";
-      }
-      if (projectionTable) {
-        renderTable(
-          projectionTable,
-          selectedProjectionRows,
-          [
-            { key: "player_name", label: "Player" },
-            { key: "team", label: "Team" },
-            { key: "position", label: "Pos" },
-            { key: "projection.minutes", label: "MP", render: (row) => formatFloat(row.projection?.minutes, 1) },
-            { key: "projection.points", label: "PTS", render: (row) => formatFloat(row.projection?.points, 1) },
-            { key: "projection.rebounds", label: "REB", render: (row) => formatFloat(row.projection?.rebounds, 1) },
-            { key: "projection.assists", label: "AST", render: (row) => formatFloat(row.projection?.assists, 1) },
-            { key: "projection.steals", label: "STL", render: (row) => formatFloat(row.projection?.steals, 1) },
-            { key: "projection.blocks", label: "BLK", render: (row) => formatFloat(row.projection?.blocks, 1) },
-            { key: "projection.fantasy_points", label: "FP", render: (row) => formatFloat(row.projection?.fantasy_points, 1) },
-            { key: "sim_mean_salary", label: "FMV", render: (row) => formatCurrency(numeric(row, "sim_mean_salary")) },
-          ],
-          2
-        );
-      }
+      setSummary(summary, [
+        ["Players", currentResult.summary.playerRows],
+        ["Replacement", formatCurrency(currentResult.summary.replacementSalary)],
+        ["$ / Win", formatCurrency(currentResult.summary.salaryPerWin)],
+        ["Teams", currentResult.summary.teamTotals.length],
+      ]);
+      downloadCsvBtn.disabled = false;
+      downloadJsonBtn.disabled = false;
     };
 
     const run = () => {
       if (!currentRows.length) {
-        status.textContent = "Load a player pool first.";
+        status.textContent = "Load an FMV file first.";
         return;
       }
-      const leftName = String(playerAInput?.value || "").trim();
-      const rightName = String(playerBInput?.value || "").trim();
-      const leftRow = currentRows.find((row) => normalizeText(row.player_name) === normalizeText(leftName));
-      const rightRow = currentRows.find((row) => normalizeText(row.player_name) === normalizeText(rightName));
-      if (!leftRow || !rightRow) {
-        status.textContent = "Select two players from the loaded pool.";
-        return;
-      }
-
-      const ranked = buildFmvw([leftRow, rightRow], {
-        replacementSalary: DEFAULTS.replacementSalary,
-        salaryPerWin: DEFAULTS.salaryPerWin,
-      }).rows;
-      const byName = new Map(ranked.map((row) => [normalizeText(row.player_name), row]));
-      const hbbLookup = buildHbbLookup(leagueBundle);
-      const left = byName.get(normalizeText(leftName));
-      const right = byName.get(normalizeText(rightName));
-      const leftHbbFactor = NUMBER(hbbLookup[String(left.team || "").trim().toUpperCase()], 1.0);
-      const rightHbbFactor = NUMBER(hbbLookup[String(right.team || "").trim().toUpperCase()], 1.0);
-      const leftHbbWins = Number((left.wins_equivalent * leftHbbFactor).toFixed(3));
-      const rightHbbWins = Number((right.wins_equivalent * rightHbbFactor).toFixed(3));
-
-      const proxyLookup = buildProxyLookup(projectionBundle.rows || currentRows);
-      const leftProxy = proxyLookup.get(normalizeText(left.player_name)) || {};
-      const rightProxy = proxyLookup.get(normalizeText(right.player_name)) || {};
-      const leftProxyAdjustment = proxyWinsAdjustment(leftProxy.offense_proxy_z || 0, leftProxy.defense_proxy_z || 0);
-      const rightProxyAdjustment = proxyWinsAdjustment(rightProxy.offense_proxy_z || 0, rightProxy.defense_proxy_z || 0);
-      const leftProxyWins = Number((leftHbbWins + leftProxyAdjustment).toFixed(3));
-      const rightProxyWins = Number((rightHbbWins + rightProxyAdjustment).toFixed(3));
-
-      currentResult = {
-        left: { ...left, ...leftProxy, proxy_adjusted_wins: leftProxyWins },
-        right: { ...right, ...rightProxy, proxy_adjusted_wins: rightProxyWins },
-        left_hbb_factor: leftHbbFactor,
-        right_hbb_factor: rightHbbFactor,
-        left_hbb_wins: leftHbbWins,
-        right_hbb_wins: rightHbbWins,
-        left_proxy_adjustment: leftProxyAdjustment,
-        right_proxy_adjustment: rightProxyAdjustment,
-        left_proxy_wins: leftProxyWins,
-        right_proxy_wins: rightProxyWins,
-        gap: {
-          salary_gap: Number((left.sim_mean_salary - right.sim_mean_salary).toFixed(2)),
-          wins_gap_fmv_bridge: Number((left.wins_equivalent - right.wins_equivalent).toFixed(3)),
-          wins_gap_hbb_bridge: Number((leftHbbWins - rightHbbWins).toFixed(3)),
-          wins_gap_proxy_adjusted: Number((leftProxyWins - rightProxyWins).toFixed(3)),
-        },
-        rows: [
-          { slot: "A", ...left, ...leftProxy, hbb_factor: leftHbbFactor, hbb_wins: leftHbbWins, proxy_adjusted_wins: leftProxyWins },
-          { slot: "B", ...right, ...rightProxy, hbb_factor: rightHbbFactor, hbb_wins: rightHbbWins, proxy_adjusted_wins: rightProxyWins },
-        ],
-      };
-      status.textContent = "Comparison ready.";
+      status.textContent = "Running FMVW bridge...";
+      currentResult = buildFmvw(currentRows, {
+        replacementSalary: getValue(root, "[data-replacement-salary]", DEFAULTS.replacementSalary),
+        salaryPerWin: getValue(root, "[data-salary-per-win]", DEFAULTS.salaryPerWin),
+      });
+      status.textContent = `Built ${currentResult.summary.playerRows} player bridge rows.`;
       render();
     };
 
-    const loadPool = async () => {
-      status.textContent = "Loading 25-26 top 200 pool...";
-      const [pool, league, projection] = await Promise.all([
-        fetchRows(samplePath),
-        fetchJson(leaguePath),
-        fetchJson(projectionPath),
-      ]);
-      currentRows = pool;
-      leagueBundle = league;
-      projectionBundle = projection;
-      populatePlayerSelects(currentRows);
-      status.textContent = `Loaded ${currentRows.length} players from the 25-26 top 200 pool.`;
+    const loadDemo = async () => {
+      status.textContent = "Loading demo FMV file...";
+      currentRows = await fetchRows(samplePath);
+      status.textContent = `Loaded ${currentRows.length} FMV rows from demo file.`;
       run();
     };
 
-    compareBtn.addEventListener("click", run);
-    playerAInput?.addEventListener("change", run);
-    playerBInput?.addEventListener("change", run);
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      status.textContent = `Reading ${file.name}...`;
+      const text = await readFileAsText(file);
+      currentRows = parseUploadedText(text);
+      status.textContent = `Loaded ${currentRows.length} rows from ${file.name}.`;
+      run();
+    });
 
-    await loadPool();
+    loadDemoBtn.addEventListener("click", loadDemo);
+    runBtn.addEventListener("click", run);
+    downloadCsvBtn.addEventListener("click", () => {
+      if (!currentResult) return;
+      const csv = toCSV(currentResult.rows);
+      downloadFile("fmvw_output.csv", csv, "text/csv");
+    });
+    downloadJsonBtn.addEventListener("click", () => {
+      if (!currentResult) return;
+      downloadFile("fmvw_output.json", JSON.stringify(currentResult, null, 2) + "\n", "application/json");
+    });
+    viewLimit.addEventListener("change", render);
+
+    await loadDemo();
   }
 
   async function mountTeam(root) {
@@ -990,6 +837,7 @@
     const summary = root.querySelector("[data-summary]");
     const teamTable = root.querySelector("[data-team-table]");
     const playerTable = root.querySelector("[data-player-table]");
+    const proxyCallout = root.querySelector("[data-proxy-callout]");
     const fileInput = root.querySelector("[data-file-input]");
     const loadDemoBtn = root.querySelector("[data-load-demo]");
     const runBtn = root.querySelector("[data-run]");
@@ -1027,19 +875,41 @@
         { key: "matchup", label: "Matchup", render: (row) => `${row.left_player} vs ${row.right_player}` },
         { key: "left_salary", label: "Left FMV", render: (row) => formatCurrency(numeric(row, "left_salary")) },
         { key: "right_salary", label: "Right FMV", render: (row) => formatCurrency(numeric(row, "right_salary")) },
-        { key: "left_base_wins", label: "Left Wins", render: (row) => formatFloat(numeric(row, "left_base_wins"), 3) },
-        { key: "right_base_wins", label: "Right Wins", render: (row) => formatFloat(numeric(row, "right_base_wins"), 3) },
-        { key: "left_hbb_wins", label: "Left HBB", render: (row) => formatFloat(numeric(row, "left_hbb_wins"), 3) },
-        { key: "right_hbb_wins", label: "Right HBB", render: (row) => formatFloat(numeric(row, "right_hbb_wins"), 3) },
+        { key: "left_base_wins", label: "Left Wins Eq", render: (row) => formatFloat(numeric(row, "left_base_wins"), 3) },
+        { key: "right_base_wins", label: "Right Wins Eq", render: (row) => formatFloat(numeric(row, "right_base_wins"), 3) },
+        { key: "left_hbb_factor", label: "Left HBB", render: (row) => formatFloat(numeric(row, "left_hbb_factor"), 3) },
+        { key: "right_hbb_factor", label: "Right HBB", render: (row) => formatFloat(numeric(row, "right_hbb_factor"), 3) },
+        { key: "left_hbb_delta", label: "Left HBB Δ", render: (row) => formatFloat(numeric(row, "left_hbb_wins") - numeric(row, "left_base_wins"), 3) },
+        { key: "right_hbb_delta", label: "Right HBB Δ", render: (row) => formatFloat(numeric(row, "right_hbb_wins") - numeric(row, "right_base_wins"), 3) },
+        { key: "left_hbb_wins", label: "Left HBB Wins", render: (row) => formatFloat(numeric(row, "left_hbb_wins"), 3) },
+        { key: "right_hbb_wins", label: "Right HBB Wins", render: (row) => formatFloat(numeric(row, "right_hbb_wins"), 3) },
+        { key: "left_proxy_delta", label: "Left Proxy Δ", render: (row) => formatFloat(numeric(row, "left_proxy_delta"), 3) },
+        { key: "right_proxy_delta", label: "Right Proxy Δ", render: (row) => formatFloat(numeric(row, "right_proxy_delta"), 3) },
+        { key: "left_proxy_wins", label: "Left Proxy Wins", render: (row) => formatFloat(numeric(row, "left_proxy_wins"), 3) },
+        { key: "right_proxy_wins", label: "Right Proxy Wins", render: (row) => formatFloat(numeric(row, "right_proxy_wins"), 3) },
+        { key: "left_offense_proxy_z", label: "Left Off", render: (row) => formatFloat(numeric(row, "left_offense_proxy_z"), 3) },
+        { key: "left_defense_proxy_z", label: "Left Def", render: (row) => formatFloat(numeric(row, "left_defense_proxy_z"), 3) },
+        { key: "left_turnovers", label: "Left TO", render: (row) => formatFloat(numeric(row, "left_turnovers"), 2) },
+        { key: "left_fta", label: "Left FTA", render: (row) => formatFloat(numeric(row, "left_fta"), 2) },
+        { key: "right_offense_proxy_z", label: "Right Off", render: (row) => formatFloat(numeric(row, "right_offense_proxy_z"), 3) },
+        { key: "right_defense_proxy_z", label: "Right Def", render: (row) => formatFloat(numeric(row, "right_defense_proxy_z"), 3) },
+        { key: "right_turnovers", label: "Right TO", render: (row) => formatFloat(numeric(row, "right_turnovers"), 2) },
+        { key: "right_fta", label: "Right FTA", render: (row) => formatFloat(numeric(row, "right_fta"), 2) },
+        { key: "proxy_wins_gap", label: "Proxy Gap", render: (row) => formatFloat(numeric(row, "proxy_wins_gap"), 3) },
         { key: "wins_gap_fmv_bridge", label: "Base Gap", render: (row) => formatFloat(numeric(row, "wins_gap_fmv_bridge"), 3) },
         { key: "wins_gap_hbb_bridge", label: "HBB Gap", render: (row) => formatFloat(numeric(row, "wins_gap_hbb_bridge"), 3) },
       ];
 
-      if (teamTable) {
-        renderTable(teamTable, currentBundle.team_comparison || [], teamColumns, NUMBER(viewLimit.value, 20));
-      }
-      if (playerTable) {
-        renderTable(playerTable, currentBundle.player_comparisons || [], playerColumns, NUMBER(viewLimit.value, 20));
+      renderTable(teamTable, currentBundle.team_comparison || [], teamColumns, NUMBER(viewLimit.value, 20));
+      renderTable(playerTable, currentBundle.player_comparisons || [], playerColumns, NUMBER(viewLimit.value, 20));
+      if (proxyCallout) {
+        const callouts = (currentBundle.player_comparisons || []).map((row) => (
+          `${row.left_player}: off ${formatFloat(numeric(row, "left_offense_proxy_z"), 3)}, def ${formatFloat(numeric(row, "left_defense_proxy_z"), 3)}, TO ${formatFloat(numeric(row, "left_turnovers"), 2)}, FTA ${formatFloat(numeric(row, "left_fta"), 2)}; ` +
+          `${row.right_player}: off ${formatFloat(numeric(row, "right_offense_proxy_z"), 3)}, def ${formatFloat(numeric(row, "right_defense_proxy_z"), 3)}, TO ${formatFloat(numeric(row, "right_turnovers"), 2)}, FTA ${formatFloat(numeric(row, "right_fta"), 2)}`
+        ));
+        proxyCallout.textContent = callouts.length
+          ? `Proxy read: ${callouts.join(" | ")}`
+          : "Offense / defense proxy read will appear here.";
       }
       setSummary(summary, [
         ["Teams", currentBundle.team_comparison?.length || 0],
@@ -1103,112 +973,6 @@
     ]);
   }
 
-  async function mountLeague(root) {
-    const samplePath = root.dataset.sample || DEFAULTS.leagueTableFeed;
-    const status = root.querySelector("[data-status]");
-    const summary = root.querySelector("[data-summary]");
-    const table = root.querySelector("[data-table]");
-    const fileInput = root.querySelector("[data-file-input]");
-    const loadDemoBtn = root.querySelector("[data-load-demo]");
-    const runBtn = root.querySelector("[data-run]");
-    const downloadCsvBtn = root.querySelector("[data-download-csv]");
-    const downloadJsonBtn = root.querySelector("[data-download-json]");
-    const viewLimit = root.querySelector("[data-view-limit]");
-
-    let currentBundle = {};
-
-    const rows = () => Array.isArray(currentBundle.rows) ? currentBundle.rows : [];
-    const csvRows = () => rows().map((row) => ({
-      team: row.team,
-      actual_2025_26_wins: row.actual_2025_26_wins,
-      top7_fmv_total: row.top7_fmv_total,
-      top7_expected_wins_bridge: row.top7_expected_wins_bridge,
-      top7_expected_wins_hbb_bridge: row.top7_expected_wins_hbb_bridge,
-      core4_score: row.core4_score,
-      support_score: row.support_score,
-      core_fit_bonus: row.core_fit_bonus,
-      interaction_bonus: row.interaction_bonus,
-      pressure_bonus: row.pressure_bonus,
-      easy_bonus: row.easy_bonus,
-      pressure_easy_bonus: row.pressure_easy_bonus,
-      depth_bonus: row.depth_bonus,
-      team_total_score: row.team_total_score,
-      ops_expected_wins_bridge: row.ops_expected_wins_bridge,
-      ops_expected_wins_hbb_bridge: row.ops_expected_wins_hbb_bridge,
-    }));
-
-    const render = () => {
-      const columns = [
-        { key: "team", label: "Team" },
-        { key: "actual_2025_26_wins", label: "Actual", render: (row) => row.actual_2025_26_wins ?? "--" },
-        { key: "top7_fmv_total", label: "Top 7 FMV", render: (row) => formatCurrency(numeric(row, "top7_fmv_total")) },
-        { key: "top7_expected_wins_bridge", label: "FMVW", render: (row) => formatFloat(numeric(row, "top7_expected_wins_bridge"), 3) },
-        { key: "top7_expected_wins_hbb_bridge", label: "FMVW + HBB", render: (row) => formatFloat(numeric(row, "top7_expected_wins_hbb_bridge"), 3) },
-        { key: "core4_score", label: "Core 4", render: (row) => formatFloat(numeric(row, "core4_score"), 3) },
-        { key: "support_score", label: "Support", render: (row) => formatFloat(numeric(row, "support_score"), 3) },
-        { key: "core_fit_bonus", label: "Fit", render: (row) => formatFloat(numeric(row, "core_fit_bonus"), 3) },
-        { key: "interaction_bonus", label: "Interaction", render: (row) => formatFloat(numeric(row, "interaction_bonus"), 3) },
-        { key: "pressure_bonus", label: "P Bonus", render: (row) => formatFloat(numeric(row, "pressure_bonus"), 3) },
-        { key: "easy_bonus", label: "E Bonus", render: (row) => formatFloat(numeric(row, "easy_bonus"), 3) },
-        { key: "pressure_easy_bonus", label: "P/E", render: (row) => formatFloat(numeric(row, "pressure_easy_bonus"), 3) },
-        { key: "depth_bonus", label: "Depth", render: (row) => formatFloat(numeric(row, "depth_bonus"), 3) },
-        { key: "team_total_score", label: "Team Score", render: (row) => formatFloat(numeric(row, "team_total_score"), 3) },
-        { key: "ops_expected_wins_bridge", label: "Team Wins", render: (row) => formatFloat(numeric(row, "ops_expected_wins_bridge"), 3) },
-        { key: "ops_expected_wins_hbb_bridge", label: "Team + HBB", render: (row) => formatFloat(numeric(row, "ops_expected_wins_hbb_bridge"), 3) },
-      ];
-      renderTable(table, rows(), columns, NUMBER(viewLimit.value, 30));
-      setSummary(summary, [
-        ["Teams", rows().length],
-        ["League HBB", formatFloat(numeric(currentBundle, "league_hbb"), 3)],
-        ["Backtest R^2", formatFloat(numeric(currentBundle.fmvw_backtest?.curve || {}, "r2"), 3)],
-        ["Backtest MAE", formatFloat(numeric(currentBundle.fmvw_backtest?.curve || {}, "mae"), 3)],
-      ]);
-      downloadCsvBtn.disabled = false;
-      downloadJsonBtn.disabled = false;
-    };
-
-    const run = () => {
-      if (!rows().length) {
-        status.textContent = "Load a league table bundle first.";
-        return;
-      }
-      status.textContent = "Rendering league table...";
-      render();
-      status.textContent = "League table ready.";
-    };
-
-    const loadDemo = async () => {
-      status.textContent = "Loading demo league table...";
-      currentBundle = await fetchComparisonBundle(samplePath);
-      status.textContent = "Loaded demo league table bundle.";
-      run();
-    };
-
-    fileInput.addEventListener("change", async () => {
-      const file = fileInput.files && fileInput.files[0];
-      if (!file) return;
-      status.textContent = `Reading ${file.name}...`;
-      const text = await readFileAsText(file);
-      currentBundle = parseComparisonBundle(text);
-      status.textContent = `Loaded league table bundle from ${file.name}.`;
-      run();
-    });
-
-    loadDemoBtn.addEventListener("click", loadDemo);
-    runBtn.addEventListener("click", run);
-    downloadCsvBtn.addEventListener("click", () => {
-      if (!currentBundle) return;
-      downloadFile("league_table_output.csv", toCSV(csvRows()), "text/csv");
-    });
-    downloadJsonBtn.addEventListener("click", () => {
-      if (!currentBundle) return;
-      downloadFile("league_table_output.json", JSON.stringify(currentBundle, null, 2) + "\n", "application/json");
-    });
-    viewLimit.addEventListener("change", render);
-
-    await loadDemo();
-  }
-
   async function mountHub(root) {
     const summary = root.querySelector("[data-summary]");
     const loadDemo = async () => {
@@ -1239,7 +1003,6 @@
     if (app === "fmvw") await mountFMVW(root);
     if (app === "team") await mountTeam(root);
     if (app === "process") await mountProcess(root);
-    if (app === "league") await mountLeague(root);
   }
 
   window.BasketballOpsApp = {

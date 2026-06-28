@@ -3,30 +3,60 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Fair Market Value Methodology</title>
+    <title>DBB2 Basketball Ops</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
-  <body>
+  <body data-app="hub">
+    <header>
+      <div class="wrap">
+        <div class="eyebrow">DBB2 Basketball Ops</div>
+        <h1>Basketball Ops</h1>
+        <p>Four static pages. One turns context-neutral player rows into cap-adjusted fair market value. One bridges that market value into a wins-equivalent team-value metric. One compares teams. One explains the process.</p>
+        <div class="subline">
+          <span class="chip">30 teams</span>
+          <span class="chip">12 roster slots</span>
+          <span class="chip">2025-26 cap</span>
+          <span class="chip">Backendless</span>
+        </div>
+      </div>
+    </header>
+
     <main>
-      <div class="eyebrow">DBB2 Basketball Ops</div>
-      <h1>Fair Market Value Methodology</h1>
-      <div class="grid">
-        <a href="./fmvw/">
-          <h2>FMVW View</h2>
-          <p>Player comps first. Jokic vs Gobert and Luka vs SGA with teammate-neutral market value and wins bridge context.</p>
-          <span class="tag">Player-focused</span>
-        </a>
-        <a href="./process/">
-          <h2>Process</h2>
-          <p>How the stack flows from raw DBB2 into teammate-neutral values, FMV, and FMVW.</p>
-          <span class="tag">Method</span>
-        </a>
-        <a href="./methodology/">
-          <h2>Methodology</h2>
-          <p>Every step and configuration item, in plain English, from projection inputs through proxy-adjusted wins.</p>
-          <span class="tag">Detailed</span>
-        </a>
+      <div class="split">
+        <section class="card">
+          <h2>Start Here</h2>
+          <div class="list">
+            <div class="card">
+              <h3><a href="./fmv/">FMV</a></h3>
+              <p>Load the demo feed, set basketball-ops weights, and generate a cap-adjusted market value CSV / JSON.</p>
+            </div>
+            <div class="card">
+              <h3><a href="./fmvw/">FMVW</a></h3>
+              <p>Upload the FMV output and convert it into a wins-equivalent bridge with configurable replacement and calibration settings.</p>
+            </div>
+            <div class="card">
+              <h3><a href="./team/">Team vs Team</a></h3>
+              <p>Compare roster value, HBB adjustment, and wins bridge for matchups like Hawks vs Knicks.</p>
+            </div>
+            <div class="card">
+              <h3><a href="./process/">Process</a></h3>
+              <p>Read the stack in order: raw DBB2, teammate-neutral normalization, FMV, FMVW, then team comparison.</p>
+            </div>
+            <div class="card">
+              <h3><a href="./methodology/">Methodology</a></h3>
+              <p>See every stage, totals column, and proxy readout used in the FMV to wins chain.</p>
+            </div>
+          </div>
+        </section>
+
+        <aside class="card">
+          <h2>Default Demo</h2>
+          <div data-summary class="list"></div>
+          <p class="small muted" style="margin-top: 14px;">The pages use the bundled sample feed from the first FMV build so the flow works without a backend.</p>
+        </aside>
       </div>
     </main>
+
+    <script src="./app.js"></script>
   </body>
 </html>
